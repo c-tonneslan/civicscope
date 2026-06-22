@@ -1,9 +1,9 @@
 import sqlite3
 from datetime import timezone, datetime
-
+from app.config import settings
 
 def get_database_connection():
-    return sqlite3.connect("tasks.db")
+    return sqlite3.connect(settings.database_path)
 
 def init_db(conn):
     command = '''
