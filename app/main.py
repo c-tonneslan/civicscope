@@ -16,9 +16,30 @@ async def lifespan(app: FastAPI):
     conn = db.get_database_connection()
     db.init_db(conn)
     yield
+    # Tear down the civic Postgres pool on shutdown. It spawns worker threads when
+    # opened lazily on first use; without this they leak (uvicorn logs "couldn't
+    # stop thread pool-1-worker-N"). close_pool() is idempotent — a no-op if the
+    # pool was never opened, so this stays safe for tests that never touch civic.
+    try:
+        from app.civic import db as civic_db
+        civic_db.close_pool()
+    except Exception:
+        pass
 
 app = FastAPI(lifespan=lifespan)
 ph = PasswordHasher()
+
+# --- Civic-intelligence slice (feat/civic-intel-slice) --------------------
+# Additive wiring for the civic RAG routers. These mount POST /civic/ingest and
+# POST /civic/ask alongside the existing tasks/auth/health routes above; they
+# share none of the SQLite tables or connections. The civic Postgres schema is
+# initialised lazily on first use by app.civic.db.init() (not in the SQLite
+# lifespan above), so importing/mounting these routers requires no live Postgres.
+from app.civic.routers import ingest as civic_ingest, ask as civic_ask
+
+app.include_router(civic_ingest.router)   # POST /civic/ingest
+app.include_router(civic_ask.router)      # POST /civic/ask
+# --------------------------------------------------------------------------
 
 @app.get("/health")
 def get_health():

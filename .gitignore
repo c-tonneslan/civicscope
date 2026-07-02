@@ -3,5 +3,9 @@ __pycache__/
 .pytest_cache/
 venv/
 
+# Test artifacts (pytest-cov + hypothesis)
+.coverage
+.hypothesis/
+
 # SQLite data files
 *.db
