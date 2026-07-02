@@ -1,8 +1,8 @@
-# Local Postgres + pgvector for the task-forge civic-intelligence slice.
+# Local Postgres + pgvector for the civicscope civic-intelligence slice.
 #
 # Credentials and DB name here MUST match settings.civic_database_url in
 # app/config.py, which defaults to:
-#     postgresql://tf:tf@localhost:5432/taskforge_civic
+#     postgresql://tf:tf@localhost:5432/civicscope
 #
 # This is used only by the civic slice (app/civic/*). The existing tasks/users
 # API stays on SQLite and does not touch this service.
@@ -10,20 +10,20 @@
 services:
   db:
     image: pgvector/pgvector:pg16
-    container_name: taskforge-civic-db
+    container_name: civicscope-db
     environment:
       POSTGRES_USER: tf
       POSTGRES_PASSWORD: tf
-      POSTGRES_DB: taskforge_civic
+      POSTGRES_DB: civicscope
     ports:
       - "5432:5432"
     volumes:
-      - taskforge_civic_pgdata:/var/lib/postgresql/data
+      - civicscope_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tf -d taskforge_civic"]
+      test: ["CMD-SHELL", "pg_isready -U tf -d civicscope"]
       interval: 5s
       timeout: 5s
       retries: 10
 
 volumes:
-  taskforge_civic_pgdata:
+  civicscope_pgdata:

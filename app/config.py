@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     # Postgres + pgvector connection string for the civic corpus. Default
     # matches the pgvector service credentials in docker-compose.yml.
-    civic_database_url: str = "postgresql://tf:tf@localhost:5432/taskforge_civic"
+    civic_database_url: str = "postgresql://tf:tf@localhost:5432/civicscope"
 
     # Local Ollama server + model for the cite-or-refuse synthesis step.
     # Runs fully local at $0 with no API key.

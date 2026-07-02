@@ -1,4 +1,4 @@
-"""Civic-intelligence slice for task-forge.
+"""Civic-intelligence slice for civicscope.
 
 A thin, additive RAG spine over Philadelphia City Council legislation:
 

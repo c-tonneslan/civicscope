@@ -65,7 +65,7 @@ hypothesis` explicitly, or `--cov` and `@given` silently disappear. Plain
 ```bash
 # 1. bring up pgvector (see docker-compose.yml -> pgvector/pgvector:pg16)
 docker compose up -d db
-export CIVIC_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/taskforge_civic
+export CIVIC_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/civicscope
 
 # 2. (optional, exercises real embedding/LLM paths in a manual smoke) local LLM
 ollama serve && ollama pull llama3.1:8b
@@ -100,7 +100,7 @@ app/
 docs/
   CIVIC_SLICE.md       # the feature description (data model, flow, run recipe)
   CIVIC_CONTEXT.md     # this file — test context + status
-docker-compose.yml     # pgvector/pgvector:pg16 service (taskforge_civic DB)
+docker-compose.yml     # pgvector/pgvector:pg16 service (civicscope DB)
 ```
 
 Flow: Legistar Matters (Philadelphia) -> normalize -> chunk -> embed (fastembed

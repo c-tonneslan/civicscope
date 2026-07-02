@@ -643,7 +643,7 @@ def test_property_parent_source_ref_and_title_bound_verbatim(source_ref, title):
 
 
 CIVIC_DEFAULTS = {
-    "civic_database_url": "postgresql://tf:tf@localhost:5432/taskforge_civic",
+    "civic_database_url": "postgresql://tf:tf@localhost:5432/civicscope",
     "ollama_host": "http://localhost:11434",
     "ollama_model": "llama3.1:8b",
     "llm_provider": "ollama",

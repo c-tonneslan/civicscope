@@ -22,7 +22,7 @@ from app.config import Settings, settings
 # The full set of civic-additive fields and their documented defaults. Kept as a
 # single source of truth so the default-value and presence tests can't drift.
 CIVIC_DEFAULTS = {
-    "civic_database_url": "postgresql://tf:tf@localhost:5432/taskforge_civic",
+    "civic_database_url": "postgresql://tf:tf@localhost:5432/civicscope",
     "ollama_host": "http://localhost:11434",
     "ollama_model": "llama3.1:8b",
     "llm_provider": "ollama",

@@ -43,7 +43,7 @@ app/
       ask.py           # POST /civic/ask
 docs/
   CIVIC_SLICE.md       # this file
-docker-compose.yml     # pgvector/pgvector:pg16 service (taskforge_civic DB)
+docker-compose.yml     # pgvector/pgvector:pg16 service (civicscope DB)
 tests/
   test_civic_rrf.py         # pure RRF fusion unit test (no DB/LLM)
   test_civic_citations.py   # citation-verifier unit test (no DB/LLM)
