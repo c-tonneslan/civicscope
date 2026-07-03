@@ -346,3 +346,58 @@ button:disabled {
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
+
+/* --- Clickable citations + bill timeline ------------------------------- */
+.cite-button {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  background: none;
+  border: none;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+}
+.cite-button:hover {
+  background: var(--bg);
+}
+.cite-title {
+  flex: 1;
+}
+.cite-toggle {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.timeline {
+  margin: 2px 0 10px 14px;
+  padding-left: 14px;
+  border-left: 2px solid var(--border);
+}
+.timeline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.timeline-list li {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 10px;
+  font-size: 13px;
+}
+.tl-date {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.tl-action {
+  color: var(--text);
+}

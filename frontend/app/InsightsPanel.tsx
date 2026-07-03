@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import CitationList from "./CitationList";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 // Mirrors app/civic/schemas.py: OverviewResponse / TopicActivityResponse.
@@ -182,13 +184,7 @@ export default function InsightsPanel({ jurisdiction = "" }: { jurisdiction?: st
                   {brief.briefing}
                 </p>
                 {!brief.refused && brief.citations.length > 0 && (
-                  <ul className="citations">
-                    {brief.citations.map((c) => (
-                      <li key={c.file_no}>
-                        <span className="cite-id">#{c.file_no}</span> {c.title}
-                      </li>
-                    ))}
-                  </ul>
+                  <CitationList citations={brief.citations} jurisdiction={jurisdiction} />
                 )}
               </>
             )}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import CitationList from "./CitationList";
 import InsightsPanel from "./InsightsPanel";
 
 // Base URL the browser uses to reach the FastAPI backend. Inlined at build
@@ -158,14 +159,10 @@ export default function Home() {
 
             {!result.refused && result.citations.length > 0 && (
               <>
-                <p className="section-title">Citations</p>
-                <ul className="citations">
-                  {result.citations.map((c) => (
-                    <li key={c.file_no}>
-                      <span className="cite-id">#{c.file_no}</span> {c.title}
-                    </li>
-                  ))}
-                </ul>
+                <p className="section-title">
+                  Citations <span className="hint">— click a bill for its timeline</span>
+                </p>
+                <CitationList citations={result.citations} jurisdiction={jurisdiction} />
               </>
             )}
 
