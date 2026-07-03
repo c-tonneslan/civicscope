@@ -87,6 +87,10 @@ export default function Home() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      // The final event carries the authoritative verdict; track that it arrived
+      // so a truncated stream (network/proxy cut mid-answer) surfaces an error
+      // instead of silently leaving the draft text with no citations.
+      let gotFinal = false;
       const handle = (line: string) => {
         const trimmed = line.trim();
         if (!trimmed) return;
@@ -94,6 +98,7 @@ export default function Home() {
         if (ev.type === "token") {
           setStreamed((prev) => prev + ev.text);
         } else {
+          gotFinal = true;
           setResult({
             answer: ev.answer,
             citations: ev.citations,
@@ -115,6 +120,9 @@ export default function Home() {
       // Flush a trailing partial line (the final event may arrive without a
       // trailing newline being read as a separate chunk).
       if (buffer) handle(buffer);
+      if (!gotFinal) {
+        setError("The answer stream ended before completing — please try again.");
+      }
     } catch {
       setError(
         `Couldn't reach the civicscope API at ${API_URL} — is it running on :8000?`
@@ -199,6 +207,7 @@ export default function Home() {
         <section style={{ marginTop: 24 }}>
           <div className="panel">
             <p className="answer">{streamed}</p>
+            <p className="note">Drafting — citations are verified when the answer completes.</p>
           </div>
         </section>
       )}
