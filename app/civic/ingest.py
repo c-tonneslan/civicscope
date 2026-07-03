@@ -535,6 +535,133 @@ def backfill_history(
 
 
 # ---------------------------------------------------------------------------
+# Per-member roll-call votes
+# ---------------------------------------------------------------------------
+
+
+def fetch_votes(
+    history_id: int, *, client: str | None = None, http: httpx.Client
+) -> list[tuple[str, str | None]]:
+    """Per-member votes for one action: ``[(person_name, vote_value), ...]``.
+
+    Legistar exposes a vote action's roll-call at ``/EventItems/{id}/Votes`` where
+    the EventItem id equals the MatterHistoryId. Any failure yields ``[]``.
+    """
+
+    client = client or settings.legistar_client
+    try:
+        resp = _get_with_retry(
+            http, f"{LEGISTAR_BASE}/{client}/EventItems/{history_id}/Votes"
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if not isinstance(data, list):
+            return []
+        out: list[tuple[str, str | None]] = []
+        for v in data:
+            if not isinstance(v, dict):
+                continue
+            person = (v.get("VotePersonName") or "").strip()
+            if person:
+                out.append((person, v.get("VoteValueName")))
+        return out
+    except Exception:  # noqa: BLE001 - votes are best-effort enrichment
+        return []
+
+
+def fetch_bill_votes(
+    matter_id: str, *, client: str | None = None, http: httpx.Client
+) -> list[tuple[int, date | None, str | None, str, str | None]]:
+    """All roll-call votes for a bill across its voted actions.
+
+    Walks the bill's histories, and for each action that recorded a pass/fail
+    (``MatterHistoryPassedFlagName`` set) pulls the per-member roll-call. Returns
+    ``[(history_ref, action_date, action_name, person_name, vote_value), ...]``.
+    """
+
+    client = client or settings.legistar_client
+    votes: list[tuple[int, date | None, str | None, str, str | None]] = []
+    try:
+        resp = _get_with_retry(
+            http, f"{LEGISTAR_BASE}/{client}/Matters/{matter_id}/Histories"
+        )
+        resp.raise_for_status()
+        histories = resp.json()
+        if not isinstance(histories, list):
+            return []
+        for h in histories:
+            if not isinstance(h, dict) or h.get("MatterHistoryPassedFlagName") is None:
+                continue  # only actions that recorded a vote
+            hid = h.get("MatterHistoryId")
+            if hid is None:
+                continue
+            action = (h.get("MatterHistoryActionName") or "").strip() or None
+            adate = _parse_intro_date(h.get("MatterHistoryActionDate"))
+            for person, value in fetch_votes(hid, client=client, http=http):
+                votes.append((hid, adate, action, person, value))
+    except Exception:  # noqa: BLE001 - votes are best-effort enrichment
+        logger.warning("no votes for Matter %s", matter_id, exc_info=True)
+    return votes
+
+
+def backfill_votes(
+    client: str | None = None,
+    jurisdiction: str | None = None,
+    *,
+    http: httpx.Client | None = None,
+    only_missing: bool = False,
+    statuses: tuple[str, ...] | None = ("ENACTED",),
+) -> int:
+    """Fetch + store per-member roll-call votes for docs in a jurisdiction.
+
+    Bounded by ``statuses`` (default enacted bills, which carry the meaningful
+    roll-calls) so the pass stays tractable. ``only_missing`` skips docs that
+    already have votes. Commits periodically. Returns docs processed.
+    """
+
+    client = client or settings.legistar_client
+    jurisdiction = jurisdiction or client
+
+    from .db import get_conn, upsert_votes
+
+    own_client = http is None
+    http = http or httpx.Client(headers={"User-Agent": USER_AGENT})
+    processed = 0
+    clauses = ["d.jurisdiction = %s"]
+    params: list = [jurisdiction]
+    if statuses:
+        clauses.append("d.status = ANY(%s)")
+        params.append(list(statuses))
+    if only_missing:
+        clauses.append(
+            "NOT EXISTS (SELECT 1 FROM civic_votes v WHERE v.document_id = d.id)"
+        )
+    where = " AND ".join(clauses)
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"SELECT d.id, d.source_ref FROM civic_documents d "
+                    f"WHERE {where} ORDER BY d.id;",
+                    tuple(params),
+                )
+                rows = cur.fetchall()
+            for doc_id, source_ref in rows:
+                votes = fetch_bill_votes(source_ref, client=client, http=http)
+                upsert_votes(conn, doc_id, votes)
+                processed += 1
+                if processed % 50 == 0:
+                    conn.commit()
+                    logger.info("votes backfill: %d/%d", processed, len(rows))
+                time.sleep(ATTACHMENT_DELAY_SECONDS)
+            conn.commit()
+    finally:
+        if own_client:
+            http.close()
+    return processed
+
+
+# ---------------------------------------------------------------------------
 # Normalize
 # ---------------------------------------------------------------------------
 

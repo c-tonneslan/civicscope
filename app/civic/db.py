@@ -194,6 +194,24 @@ _DDL_STATEMENTS = [
     "ON civic_history (document_id);",
     "CREATE INDEX IF NOT EXISTS civic_history_action_date_idx "
     "ON civic_history (action_date);",
+    # 8. Per-member roll-call votes: how each member voted on a bill's action.
+    #    ``history_ref`` is the Legistar MatterHistoryId of the vote action, so a
+    #    bill voted on at several stages keeps each roll-call distinct.
+    """
+    CREATE TABLE IF NOT EXISTS civic_votes (
+        id          BIGSERIAL PRIMARY KEY,
+        document_id BIGINT NOT NULL REFERENCES civic_documents(id) ON DELETE CASCADE,
+        history_ref BIGINT,
+        action_date DATE,
+        action_name TEXT,
+        person_name TEXT NOT NULL,
+        vote_value  TEXT,
+        UNIQUE (document_id, history_ref, person_name)
+    );
+    """,
+    "CREATE INDEX IF NOT EXISTS civic_votes_person_idx ON civic_votes (person_name);",
+    "CREATE INDEX IF NOT EXISTS civic_votes_document_idx "
+    "ON civic_votes (document_id);",
 ]
 
 
@@ -287,6 +305,35 @@ def upsert_history(conn, document_id: int, entries: Sequence) -> int:
                 (document_id, seq, action_date, action_name, passed_flag),
             )
     return len(entries)
+
+
+_INSERT_VOTE_SQL = """
+    INSERT INTO civic_votes
+        (document_id, history_ref, action_date, action_name, person_name, vote_value)
+    VALUES (%s, %s, %s, %s, %s, %s)
+    ON CONFLICT (document_id, history_ref, person_name) DO UPDATE SET
+        action_date = EXCLUDED.action_date,
+        action_name = EXCLUDED.action_name,
+        vote_value  = EXCLUDED.vote_value;
+"""
+
+
+def upsert_votes(conn, document_id: int, votes: Sequence) -> int:
+    """Replace a document's roll-call votes (delete-then-insert).
+
+    Each vote is ``(history_ref, action_date, action_name, person_name, vote_value)``.
+    Returns the number of vote rows written.
+    """
+
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM civic_votes WHERE document_id = %s;", (document_id,))
+        for history_ref, action_date, action_name, person_name, vote_value in votes:
+            cur.execute(
+                _INSERT_VOTE_SQL,
+                (document_id, history_ref, action_date, action_name,
+                 person_name, vote_value),
+            )
+    return len(votes)
 
 
 def upsert_document(conn, doc, chunks: Sequence) -> int:

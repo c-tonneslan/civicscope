@@ -199,6 +199,41 @@ class VelocityResponse(BaseModel):
     avg_days_to_enact: int | None
 
 
+class RollCallVote(BaseModel):
+    """One member's vote in a roll-call."""
+
+    person: str
+    vote: str | None
+
+
+class RollCallResponse(BaseModel):
+    """Body of ``GET /civic/insights/rollcall`` — a bill's roll-call."""
+
+    file_no: str
+    found: bool
+    title: str | None
+    action: str | None
+    action_date: date | None
+    tally: dict[str, int]
+    votes: list[RollCallVote]
+
+
+class MemberRecordItem(BaseModel):
+    """Distinct bills a member voted a given way on."""
+
+    vote: str
+    bills: int
+
+
+class MemberRecordResponse(BaseModel):
+    """Body of ``GET /civic/insights/member`` — a member's voting record."""
+
+    person: str
+    topic: str | None
+    jurisdiction: str | None
+    record: list[MemberRecordItem]
+
+
 class SponsorItem(BaseModel):
     """One sponsor and how many bills they sponsored under the query scope."""
 

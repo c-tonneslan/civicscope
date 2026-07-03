@@ -16,6 +16,11 @@ type Timeline = {
   url: string | null;
   timeline: TimelineEntry[];
 };
+type RollCall = {
+  found: boolean;
+  tally: Record<string, number>;
+  votes: { person: string; vote: string | null }[];
+};
 
 // A citation list where clicking a bill expands its legislative timeline
 // (GET /civic/insights/timeline). Used for both /ask answers and topic briefs.
@@ -28,6 +33,7 @@ export default function CitationList({
 }) {
   const [open, setOpen] = useState<string | null>(null);
   const [data, setData] = useState<Timeline | null>(null);
+  const [rollcall, setRollcall] = useState<RollCall | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function toggle(fileNo: string) {
@@ -37,13 +43,17 @@ export default function CitationList({
     }
     setOpen(fileNo);
     setData(null);
+    setRollcall(null);
     setLoading(true);
     const jz = jurisdiction ? `&jurisdiction=${encodeURIComponent(jurisdiction)}` : "";
+    const f = encodeURIComponent(fileNo);
     try {
-      const res = await fetch(
-        `${API_URL}/civic/insights/timeline?file_no=${encodeURIComponent(fileNo)}${jz}`
-      );
-      if (res.ok) setData(await res.json());
+      const [tRes, rRes] = await Promise.all([
+        fetch(`${API_URL}/civic/insights/timeline?file_no=${f}${jz}`),
+        fetch(`${API_URL}/civic/insights/rollcall?file_no=${f}${jz}`),
+      ]);
+      if (tRes.ok) setData(await tRes.json());
+      if (rRes.ok) setRollcall(await rRes.json());
     } catch {
       /* leave data null; the row shows a gentle "no timeline" note */
     } finally {
@@ -78,6 +88,24 @@ export default function CitationList({
               )}
               {!loading && (!data?.found || data.timeline.length === 0) && (
                 <p className="note">No timeline recorded for this bill yet.</p>
+              )}
+              {!loading && rollcall?.found && rollcall.votes.length > 0 && (
+                <p className="rollcall">
+                  <span className="rollcall-label">Roll-call:</span>{" "}
+                  {Object.entries(rollcall.tally)
+                    .map(([v, n]) => `${v} ${n}`)
+                    .join(" · ")}
+                  {rollcall.votes.some((v) => v.vote && v.vote !== "Ayes") && (
+                    <span className="rollcall-dissent">
+                      {" "}
+                      — dissent:{" "}
+                      {rollcall.votes
+                        .filter((v) => v.vote && v.vote !== "Ayes")
+                        .map((v) => `${v.person} (${v.vote})`)
+                        .join(", ")}
+                    </span>
+                  )}
+                </p>
               )}
             </div>
           )}

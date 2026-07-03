@@ -270,6 +270,93 @@ def legislative_velocity(
     }
 
 
+def bill_rollcall(file_no: str, jurisdiction: str | None = None) -> dict:
+    """The most recent roll-call for a bill: each member's vote + the tally."""
+
+    clause = "" if jurisdiction is None else " AND jurisdiction = %s"
+    params: tuple = (file_no,) if jurisdiction is None else (file_no, jurisdiction)
+
+    empty = {"file_no": file_no, "found": False, "title": None, "action": None,
+             "action_date": None, "tally": {}, "votes": []}
+
+    with get_conn() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT id, title FROM civic_documents "
+            f"WHERE file_no = %s{clause} ORDER BY intro_date DESC NULLS LAST LIMIT 1;",
+            params,
+        )
+        row = cur.fetchone()
+        if row is None:
+            return empty
+        doc_id, title = row
+        # Latest action that recorded a roll-call for this bill.
+        cur.execute(
+            "SELECT history_ref, action_name, action_date FROM civic_votes "
+            "WHERE document_id = %s ORDER BY action_date DESC NULLS LAST, "
+            "history_ref DESC LIMIT 1;",
+            (doc_id,),
+        )
+        latest = cur.fetchone()
+        if latest is None:
+            return {**empty, "found": True, "title": title}
+        href, action, action_date = latest
+        cur.execute(
+            "SELECT person_name, vote_value FROM civic_votes "
+            "WHERE document_id = %s AND history_ref = %s ORDER BY person_name;",
+            (doc_id, href),
+        )
+        votes = [{"person": p, "vote": v} for p, v in cur.fetchall()]
+
+    tally: dict[str, int] = {}
+    for v in votes:
+        key = v["vote"] or "Unknown"
+        tally[key] = tally.get(key, 0) + 1
+    return {"file_no": file_no, "found": True, "title": title, "action": action,
+            "action_date": action_date, "tally": tally, "votes": votes}
+
+
+def member_record(
+    person: str, topic: str | None = None, jurisdiction: str | None = None
+) -> dict:
+    """A member's voting record: distinct bills per vote value, optionally on a topic."""
+
+    from app.civic.retrieval import _content_terms
+
+    join_chunks = ""
+    where = []
+    params: list = []
+    if topic:
+        join_chunks = (
+            "JOIN civic_chunks c ON c.document_id = d.id, "
+            "plainto_tsquery('english', %s) AS q"
+        )
+        params.append(_content_terms(topic))  # FROM-clause %s binds first
+        where.append("c.tsv @@ q")
+    where.append("v.person_name = %s")
+    params.append(person)
+    if jurisdiction is not None:
+        where.append("d.jurisdiction = %s")
+        params.append(jurisdiction)
+    wsql = " AND ".join(where)
+
+    with get_conn() as conn, conn.cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT v.vote_value, count(DISTINCT d.id) AS bills
+            FROM civic_votes v
+            JOIN civic_documents d ON d.id = v.document_id
+            {join_chunks}
+            WHERE {wsql}
+            GROUP BY v.vote_value ORDER BY bills DESC;
+            """,
+            tuple(params),
+        )
+        rows = cur.fetchall()
+
+    return {"person": person, "topic": topic, "jurisdiction": jurisdiction,
+            "record": [{"vote": val or "Unknown", "bills": n} for val, n in rows]}
+
+
 def list_jurisdictions() -> dict:
     """List every ingested jurisdiction (Legistar client slug) with its bill count."""
 

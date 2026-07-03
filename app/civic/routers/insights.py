@@ -14,7 +14,9 @@ from fastapi import APIRouter
 from app.civic.schemas import (
     BillTimelineResponse,
     BriefResponse,
+    MemberRecordResponse,
     OverviewResponse,
+    RollCallResponse,
     SponsorsResponse,
     TopicActivityResponse,
     VelocityResponse,
@@ -106,3 +108,28 @@ def velocity(
     from app.civic.insights import legislative_velocity
 
     return VelocityResponse(**legislative_velocity(jurisdiction, since))
+
+
+@router.get("/rollcall", response_model=RollCallResponse)
+def rollcall(
+    file_no: str = Query(..., min_length=1, max_length=64),
+    jurisdiction: str | None = None,
+) -> RollCallResponse:
+    """The most recent per-member roll-call for a bill by ``?file_no=``."""
+
+    from app.civic.insights import bill_rollcall
+
+    return RollCallResponse(**bill_rollcall(file_no, jurisdiction))
+
+
+@router.get("/member", response_model=MemberRecordResponse)
+def member(
+    person: str = Query(..., min_length=1, max_length=120),
+    topic: str | None = None,
+    jurisdiction: str | None = None,
+) -> MemberRecordResponse:
+    """A member's voting record (bills per vote value), optionally on a ``?topic=``."""
+
+    from app.civic.insights import member_record
+
+    return MemberRecordResponse(**member_record(person, topic, jurisdiction))
