@@ -398,12 +398,15 @@ def backfill_sponsors(
     jurisdiction: str | None = None,
     *,
     http: httpx.Client | None = None,
+    only_missing: bool = False,
 ) -> int:
-    """Fetch + store sponsors for every already-ingested doc in a jurisdiction.
+    """Fetch + store sponsors for already-ingested docs in a jurisdiction.
 
     A standalone enrichment pass (documents must already exist) so sponsors can be
-    added without a full re-ingest. Commits periodically to bound the transaction
-    on a long run. Returns the number of documents processed.
+    added without a full re-ingest. ``only_missing`` restricts the pass to docs that
+    have NO sponsors yet — the efficient way to enrich freshly-backfilled Matters
+    without re-fetching ones already done. Commits periodically to bound the
+    transaction on a long run. Returns the number of documents processed.
     """
 
     client = client or settings.legistar_client
@@ -414,12 +417,17 @@ def backfill_sponsors(
     own_client = http is None
     http = http or httpx.Client(headers={"User-Agent": USER_AGENT})
     processed = 0
+    missing_clause = (
+        " AND NOT EXISTS (SELECT 1 FROM civic_sponsors s WHERE s.document_id = d.id)"
+        if only_missing
+        else ""
+    )
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT id, source_ref FROM civic_documents "
-                    "WHERE jurisdiction = %s ORDER BY id;",
+                    "SELECT d.id, d.source_ref FROM civic_documents d "
+                    f"WHERE d.jurisdiction = %s{missing_clause} ORDER BY d.id;",
                     (jurisdiction,),
                 )
                 rows = cur.fetchall()
