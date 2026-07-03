@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import InsightsPanel from "./InsightsPanel";
+
 // Base URL the browser uses to reach the FastAPI backend. Inlined at build
 // time by Next because of the NEXT_PUBLIC_ prefix; falls back to the local
 // backend port so the app works out of the box.
@@ -137,6 +139,8 @@ export default function Home() {
           </div>
         </section>
       )}
+
+      <InsightsPanel />
     </main>
   );
 }
