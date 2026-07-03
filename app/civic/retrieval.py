@@ -19,6 +19,7 @@ unit-tested with no DB / network / LLM — see tests/test_civic_rrf.py.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 
@@ -64,6 +65,17 @@ CANDIDATE_K = 20
 # How many fused results to actually hand to the LLM as grounding context.
 DEFAULT_TOP_K = 6
 
+# Fusion weights (lexical, dense). After the domain-stopword sharpening
+# (``_DOMAIN_STOPWORDS``), the lexical arm is high-precision for civic topic
+# queries; the dense arm — cosine similarity over short, formulaic bill titles — is
+# noisier and tends to surface off-topic procedural records (budget speeches,
+# transmittal cover-letters). We therefore trust the lexical ranking more: it
+# contributes full weight, the dense ranking half. Dense is NOT dropped — it still
+# supplies paraphrase recall for questions whose wording matches no title token —
+# only down-weighted so it breaks ties rather than dominating the top-k.
+LEXICAL_WEIGHT = 1.0
+DENSE_WEIGHT = 0.5
+
 
 # ===========================================================================
 # Pure fusion (unit-tested, no I/O)
@@ -73,21 +85,26 @@ DEFAULT_TOP_K = 6
 def reciprocal_rank_fusion(
     ranked_lists: list[list[int]],
     k: int = RRF_K,
+    weights: list[float] | None = None,
 ) -> list[tuple[int, float]]:
-    """Fuse several ranked lists of chunk ids into one ranking via RRF.
+    """Fuse several ranked lists of chunk ids into one ranking via (weighted) RRF.
 
     RRF score for a document d:
 
-        score(d) = Σ_over_lists  1 / (k + rank_in_list(d))
+        score(d) = Σ_over_lists  w_list / (k + rank_in_list(d))
 
     where ``rank_in_list`` is the **1-based** position of d in that list (the top
-    item is rank 1). A document missing from a list contributes nothing from that
-    list.
+    item is rank 1) and ``w_list`` is that list's weight. A document missing from a
+    list contributes nothing from that list.
 
     Args:
         ranked_lists: e.g. ``[dense_ids, lexical_ids]``; each inner list is
             ordered best-first and contains chunk ids.
         k: the RRF damping constant (default 60).
+        weights: optional per-list multipliers, positionally aligned with
+            ``ranked_lists``. Defaults to 1.0 for every list (classic unweighted
+            RRF), so a caller that trusts one retriever more can bias the fusion
+            without the pure math changing for existing callers.
 
     Returns:
         ``[(chunk_id, fused_score), ...]`` ordered best-first.
@@ -96,13 +113,16 @@ def reciprocal_rank_fusion(
     the output is stable and testable.
     """
 
+    if weights is None:
+        weights = [1.0] * len(ranked_lists)
+
     scores: dict[int, float] = {}
 
     # Walk each list; the position within the list IS the rank.
-    for ranked in ranked_lists:
+    for ranked, weight in zip(ranked_lists, weights):
         for index, chunk_id in enumerate(ranked):
             rank = index + 1  # 1-based: first element is rank 1
-            scores[chunk_id] = scores.get(chunk_id, 0.0) + 1.0 / (k + rank)
+            scores[chunk_id] = scores.get(chunk_id, 0.0) + weight / (k + rank)
 
     # Sort by score desc, then chunk id asc for a deterministic tiebreak.
     return sorted(scores.items(), key=lambda kv: (-kv[1], kv[0]))
@@ -138,13 +158,58 @@ def _dense_candidates(conn, query_vector: list[float], k: int) -> list[int]:
         return [row[0] for row in cur.fetchall()]
 
 
+# Civic-generic terms that appear in nearly every record ("bill", "ordinance",
+# "council") AND in the scaffolding of most questions ("what recent legislation
+# concerning ..."). Standard English stop-words are already dropped by
+# ``plainto_tsquery('english', ...)``; these are the DOMAIN stop-words it can't
+# know about. Left in the lexical query they match *everything* — a question about
+# "convenience fees" otherwise ranks every procedural communication that merely
+# contains the word "bill" above the actual fee ordinance. Stripping them lets the
+# DISCRIMINATIVE topic words ("convenience", "fees", "zoning") drive the lexical
+# rank. The dense (semantic) arm still sees the FULL query, so paraphrase recall is
+# untouched — this only sharpens the lexical arm.
+_DOMAIN_STOPWORDS = frozenset(
+    {
+        "legislation", "legislative", "legislature", "bill", "bills", "ordinance",
+        "ordinances", "resolution", "resolutions", "council", "councilmember",
+        "city", "philadelphia", "recent", "recently", "concern", "concerns",
+        "concerning", "relate", "relates", "related", "relating", "honor",
+        "honors", "honoring", "message", "transmit", "transmitting", "advise",
+        "advising", "matter", "matters", "pass", "passed", "law", "laws",
+        "committee", "propose", "proposed", "amend", "amending",
+    }
+)
+
+# Word = a run of letters or digits (Unicode-aware). Digits are kept on purpose:
+# a bill number ("260640") is one of the most discriminative things a question can
+# contain. Underscores/punctuation are the separators.
+_WORD_RE = re.compile(r"[^\W_]+")
+
+
+def _content_terms(query: str) -> str:
+    """Reduce a natural-language question to its discriminative topic words.
+
+    Drops civic-generic terms (see ``_DOMAIN_STOPWORDS``) and returns the survivors
+    space-joined for ``plainto_tsquery``. If nothing survives — a question built
+    only of generic terms — returns the original ``query`` unchanged so the lexical
+    arm still runs rather than searching for an empty string.
+    """
+
+    terms = [w for w in _WORD_RE.findall(query.lower()) if w not in _DOMAIN_STOPWORDS]
+    return " ".join(terms) if terms else query
+
+
 def _lexical_candidates(conn, query: str, k: int) -> list[int]:
     """Top-k chunk ids by full-text relevance (``ts_rank`` over the tsv column).
 
-    ``plainto_tsquery`` turns the raw user question into a tsquery (handles
-    stop-words and stemming). ``ts_rank`` scores how well tsv matches it; higher is
-    better, hence DESC. Rows that don't match at all are filtered by the
-    ``tsv @@ q`` WHERE clause so they never enter the lexical ranking.
+    ``plainto_tsquery`` turns the query into a tsquery (handles English stop-words
+    and stemming). ``ts_rank`` scores how well tsv matches it; higher is better,
+    hence DESC. Rows that don't match at all are filtered by the ``tsv @@ q`` WHERE
+    clause so they never enter the lexical ranking.
+
+    We feed ``_content_terms(query)`` rather than the raw question so civic-generic
+    words don't drown the discriminative topic words in the ranking (see
+    ``_DOMAIN_STOPWORDS``).
     """
 
     with conn.cursor() as cur:
@@ -156,7 +221,7 @@ def _lexical_candidates(conn, query: str, k: int) -> list[int]:
             ORDER BY ts_rank(tsv, q) DESC
             LIMIT %s;
             """,
-            (query, k),
+            (_content_terms(query), k),
         )
         return [row[0] for row in cur.fetchall()]
 
@@ -220,7 +285,11 @@ def retrieve(query: str, top_k: int = DEFAULT_TOP_K) -> list[RetrievedChunk]:
         dense_ids = _dense_candidates(conn, query_vector, CANDIDATE_K)
         lexical_ids = _lexical_candidates(conn, query, CANDIDATE_K)
 
-        fused = reciprocal_rank_fusion([dense_ids, lexical_ids])
+        # Down-weight the noisier dense arm so the sharpened lexical arm leads (see
+        # LEXICAL_WEIGHT / DENSE_WEIGHT). Order here MUST match the weights order.
+        fused = reciprocal_rank_fusion(
+            [dense_ids, lexical_ids], weights=[DENSE_WEIGHT, LEXICAL_WEIGHT]
+        )
         top_ids = [cid for cid, _score in fused[:top_k]]
 
         by_id = _fetch_chunks(conn, top_ids)

@@ -209,6 +209,52 @@ class TestNormalizeMatter:
         doc = ingest.normalize_matter(m, client="phila")
         assert doc.raw is m
 
+    def test_transmittal_preamble_stripped_from_title(self, make_matter):
+        # The shared administration preamble is removed so the chunk leads with the
+        # bill's own substance (which is what drives retrieval), not the salutation
+        # boilerplate every filed Matter shares.
+        raw = (
+            "June 9, 2026\n\n"
+            "TO THE PRESIDENT AND MEMBERS OF THE COUNCIL OF THE CITY OF PHILADELPHIA:\n\n"
+            "I am submitting herewith for the consideration of your Honorable Body "
+            "the following proposed Ordinance:\n\n"
+            "AN ORDINANCE\n\n"
+            "Adding a new Chapter 12-1800 to regulate curbside loading zones."
+        )
+        doc = ingest.normalize_matter(make_matter(MatterTitle=raw), client="phila")
+        assert doc.title.startswith("Adding a new Chapter 12-1800")
+        assert "TO THE PRESIDENT" not in doc.title
+
+
+class TestStripBoilerplate:
+    def test_strips_salutation_preamble(self):
+        raw = (
+            "May 26, 2026\n\nTO THE PRESIDENT AND MEMBERS OF THE COUNCIL OF THE "
+            "CITY OF PHILADELPHIA:\n\nRESOLUTION\n\nAuthorizing a hearing on transit."
+        )
+        assert ingest._strip_boilerplate(raw) == "Authorizing a hearing on transit."
+
+    def test_plain_title_unchanged(self):
+        # No salutation -> nothing to strip; a normal Council title is untouched.
+        title = "Recognizing May 2026 as National Tennis Month."
+        assert ingest._strip_boilerplate(title) == title
+
+    def test_only_fires_on_the_salutation(self):
+        # Text that merely mentions the president is NOT a transmittal preamble.
+        title = "Honoring the President of the Community College Board."
+        assert ingest._strip_boilerplate(title) == title
+
+    def test_preamble_without_doc_type_header(self):
+        # Cover-letters have no "AN ORDINANCE" header; the salutation still goes.
+        raw = (
+            "June 10, 2026\n\nTO THE PRESIDENT AND MEMBERS OF THE COUNCIL OF THE "
+            "CITY OF PHILADELPHIA:\n\nI am pleased to advise you that I signed "
+            "Bill No. 260424."
+        )
+        out = ingest._strip_boilerplate(raw)
+        assert "TO THE PRESIDENT" not in out
+        assert "Bill No. 260424" in out
+
 
 class TestParseIntroDate:
     @pytest.mark.parametrize(

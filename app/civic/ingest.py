@@ -239,6 +239,40 @@ def _matter_url(client: str, matter: dict) -> str:
 # pollute the tsvector (indexed tag fragments), and produce ugly citation titles.
 _TAG_RE = re.compile(r"<[^>]+>")
 
+# Strips the administration's standard transmittal PREAMBLE. Legislation filed by
+# the Mayor's office is wrapped in a boilerplate header that is IDENTICAL across
+# hundreds of Matters: an optional date line, the fixed salutation "TO THE
+# PRESIDENT AND MEMBERS OF THE COUNCIL OF THE CITY OF PHILADELPHIA:", a transmittal
+# sentence ("I am transmitting ... entitled:"), and a bare document-type header
+# ("AN ORDINANCE" / "RESOLUTION"). That shared prose dominates both the embedding
+# and the tsvector — every wrapped Matter looks alike to the retriever, so the
+# dense arm surfaces procedural cover-letters for topical questions — while the
+# SUBSTANTIVE text (what the bill actually does) is buried after it. We remove the
+# preamble span so each chunk leads with its own substance. Deliberately
+# conservative: it only fires when the salutation is present, and only removes the
+# fixed preamble prefix, so a plain title (no salutation) is returned untouched.
+_MONTHS = (
+    "January|February|March|April|May|June|July|August|September|October"
+    "|November|December"
+)
+_PREAMBLE_RE = re.compile(
+    r"^\s*(?:(?:" + _MONTHS + r")\s+\d{1,2},\s*\d{4}\s*)?"       # optional date line
+    r"TO THE PRESIDENT AND MEMBERS OF THE COUNCIL OF THE CITY OF PHILADELPHIA\s*:\s*"
+    r"(?:I am[^:]{0,200}:\s*)?"                                   # transmittal sentence
+    r"(?:(?:AN?\s+ORDINANCE|A\s+RESOLUTION|RESOLUTION)\s*)?",     # bare doc-type header
+    re.IGNORECASE,
+)
+
+
+def _strip_boilerplate(text: str) -> str:
+    """Remove the shared administration transmittal preamble (see ``_PREAMBLE_RE``).
+
+    Returns ``text`` unchanged when the salutation is absent (the common case for
+    Council-introduced titles). Removes at most one leading preamble span.
+    """
+
+    return _PREAMBLE_RE.sub("", text, count=1).strip()
+
 
 def _clean_title(raw: str) -> str:
     """Normalize a raw Legistar title for storage, chunking, and citation.
@@ -246,12 +280,14 @@ def _clean_title(raw: str) -> str:
     Order matters: unescape entities first, strip HTML tags, drop Unicode format
     characters (category Cf, e.g. the zero-width space U+200B / U+FEFF that
     survives ``.strip()`` and would otherwise embed an effectively-empty ghost
-    chunk), then trim surrounding whitespace.
+    chunk), strip the shared transmittal preamble so the chunk leads with its own
+    substance, then trim surrounding whitespace.
     """
 
     text = html.unescape(raw)
     text = _TAG_RE.sub("", text)
     text = "".join(ch for ch in text if unicodedata.category(ch) != "Cf")
+    text = _strip_boilerplate(text)
     return text.strip()
 
 

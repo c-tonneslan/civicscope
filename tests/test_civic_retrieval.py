@@ -234,13 +234,13 @@ class TestRetrieveOrchestration:
         )
 
     def test_returns_top_k_in_fused_order(self, monkeypatch):
-        # dense=[1,2,3], lexical=[3,2,1]: RRF's convex weighting makes the endpoints
-        # 1 and 3 (rank1+rank3) outrank the matched middle 2 (rank2 twice); 1 and 3
-        # tie, so id-ascending puts 1 first -> fused order [1, 3, 2].
+        # dense=[1,2,3] (weight 0.5), lexical=[3,2,1] (weight 1.0). The lexical arm
+        # is trusted 2x, so its ranking leads and the down-weighted dense arm only
+        # nudges: fused scores come out 3 > 2 > 1 -> lexical's order is preserved.
         hydrate = {i: self._chunk(i) for i in (1, 2, 3)}
         self._patch(monkeypatch, dense=[1, 2, 3], lexical=[3, 2, 1], hydrate=hydrate)
         out = retrieval.retrieve("q", top_k=3)
-        assert [c.chunk_id for c in out] == [1, 3, 2]
+        assert [c.chunk_id for c in out] == [3, 2, 1]
 
     def test_top_k_truncates(self, monkeypatch):
         hydrate = {i: self._chunk(i) for i in (1, 2, 3)}
@@ -447,21 +447,59 @@ class TestLexicalCandidatesSQL:
         # Higher ts_rank = better lexical match, so DESC.
         assert "ORDER BY ts_rank(tsv, q) DESC" in sql
 
-    def test_binds_query_then_limit(self):
+    def test_binds_content_terms_then_limit(self):
+        # A query with no civic-generic terms passes through unchanged, so the
+        # bound param is just the query (content-reduced) followed by the limit.
         conn = _mock_conn(fetchall_rows=[(1,)])
         retrieval._lexical_candidates(conn, "trash pickup", 5)
         _sql, params = _sql_and_params(conn)
         assert params == ("trash pickup", 5)
 
-    @pytest.mark.parametrize("query", ["", "   ", "!@#$%", "café ☕", "a" * 500])
-    def test_odd_queries_are_bound_verbatim(self, query):
-        # The raw query is handed straight to plainto_tsquery as a bound param;
-        # sanitisation is Postgres's job, so odd/empty/unicode text must pass
-        # through unmangled rather than being pre-filtered in Python.
+    def test_binds_reduced_content_terms_not_raw_query(self):
+        # The lexical arm searches the DISCRIMINATIVE terms, not the raw question:
+        # civic-generic scaffolding ("what recent legislation concerns ...") is
+        # dropped before binding so it can't drown the topic word in the ranking.
+        conn = _mock_conn(fetchall_rows=[(1,)])
+        retrieval._lexical_candidates(conn, "What recent legislation concerns zoning?", 5)
+        _sql, params = _sql_and_params(conn)
+        assert params[0] == "what zoning"  # "recent/legislation/concerns" stripped
+
+    @pytest.mark.parametrize("query", ["", "   ", "!@#$%", "café", "a" * 500])
+    def test_odd_queries_do_not_crash_and_bind_a_string(self, query):
+        # Odd/empty/unicode text must not raise and must still bind a str param
+        # (content-reduction never turns a query into a non-string or None).
         conn = _mock_conn(fetchall_rows=[])
         retrieval._lexical_candidates(conn, query, 5)
         _sql, params = _sql_and_params(conn)
-        assert params[0] == query
+        assert isinstance(params[0], str)
+
+
+class TestContentTerms:
+    def test_drops_civic_generic_terms(self):
+        assert retrieval._content_terms(
+            "What recent legislation concerns zoning?"
+        ) == "what zoning"
+
+    def test_keeps_multiword_topic(self):
+        # Only DOMAIN-generic terms are dropped here ("bills"); ordinary English
+        # stop-words ("are/there/any/about") are left for plainto_tsquery to drop
+        # downstream, so the topic words "convenience fees" survive.
+        assert retrieval._content_terms(
+            "Are there any bills about convenience fees?"
+        ) == "are there any about convenience fees"
+
+    def test_keeps_bill_numbers(self):
+        # Bill numbers are highly discriminative; digits survive reduction.
+        assert "260640" in retrieval._content_terms("what does bill 260640 do")
+
+    def test_all_generic_query_falls_back_to_original(self):
+        # If every word is generic, reducing to "" would search nothing, so we
+        # return the original query so the lexical arm still runs.
+        q = "legislation ordinance resolution council"
+        assert retrieval._content_terms(q) == q
+
+    def test_unicode_word_is_preserved_whole(self):
+        assert retrieval._content_terms("café") == "café"
 
 
 class TestFetchChunksSQL:
