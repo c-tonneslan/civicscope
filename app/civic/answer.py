@@ -197,13 +197,12 @@ def _build_user_prompt(question: str, chunks: list[RetrievedChunk]) -> str:
 # ===========================================================================
 
 
-def _call_ollama(question: str, chunks: list[RetrievedChunk]) -> str:
-    """Call a local Ollama server's /api/chat and return the raw answer text.
+def _ollama_chat(system_prompt: str, user_prompt: str) -> str:
+    """Low-level Ollama /api/chat call for an arbitrary system+user prompt.
 
     Fully local and $0 — no API key. ``httpx`` is imported lazily so the module
-    imports without a running Ollama. Raises on transport/HTTP errors; the caller
-    converts those into a graceful refusal. Temperature 0 keeps the answer
-    deterministic and grounded.
+    imports without a running Ollama. Raises on transport/HTTP errors; callers
+    convert those into a graceful refusal. Temperature 0 keeps output deterministic.
     """
 
     import httpx
@@ -211,8 +210,8 @@ def _call_ollama(question: str, chunks: list[RetrievedChunk]) -> str:
     payload = {
         "model": settings.ollama_model,
         "messages": [
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": _build_user_prompt(question, chunks)},
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
         ],
         "stream": False,
         "options": {"temperature": 0.0},
@@ -223,11 +222,11 @@ def _call_ollama(question: str, chunks: list[RetrievedChunk]) -> str:
     return (data.get("message", {}).get("content") or "").strip()
 
 
-def _call_anthropic(question: str, chunks: list[RetrievedChunk]) -> str:
-    """Call the Anthropic Messages API and return the raw answer text.
+def _anthropic_chat(system_prompt: str, user_prompt: str) -> str:
+    """Low-level Anthropic Messages call for an arbitrary system+user prompt.
 
     Imported lazily so the module imports without the anthropic package present.
-    Raises on transport/API errors; the caller converts those into a refusal.
+    Raises on transport/API errors; callers convert those into a refusal.
     """
 
     import anthropic
@@ -238,22 +237,45 @@ def _call_anthropic(question: str, chunks: list[RetrievedChunk]) -> str:
     message = client.messages.create(
         model=getattr(settings, "anthropic_model", "claude-3-5-sonnet-latest"),
         max_tokens=1024,
-        system=_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": _build_user_prompt(question, chunks)}],
+        system=system_prompt,
+        messages=[{"role": "user", "content": user_prompt}],
     )
     parts = [b.text for b in message.content if getattr(b, "type", None) == "text"]
     return "".join(parts).strip()
 
 
-def _synthesize(question: str, chunks: list[RetrievedChunk]) -> str:
-    """Dispatch to the configured LLM backend. Same prompt contract for both."""
+def synthesize_chat(system_prompt: str, user_prompt: str) -> str:
+    """Dispatch an arbitrary system+user prompt to the configured LLM backend.
+
+    Shared by the Q&A path (``_synthesize``) and the advisory brief path so both
+    speak to the same provider with the same failure semantics. Raises on backend
+    errors; the caller degrades to a graceful refusal.
+    """
 
     provider = settings.llm_provider.lower()
     if provider == "anthropic":
-        return _call_anthropic(question, chunks)
+        return _anthropic_chat(system_prompt, user_prompt)
     if provider == "ollama":
-        return _call_ollama(question, chunks)
+        return _ollama_chat(system_prompt, user_prompt)
     raise ValueError(f"unknown LLM provider: {settings.llm_provider!r}")
+
+
+def _call_ollama(question: str, chunks: list[RetrievedChunk]) -> str:
+    """Q&A-prompted Ollama call (kept for the answer path + its tests)."""
+
+    return _ollama_chat(_SYSTEM_PROMPT, _build_user_prompt(question, chunks))
+
+
+def _call_anthropic(question: str, chunks: list[RetrievedChunk]) -> str:
+    """Q&A-prompted Anthropic call (kept for the answer path + its tests)."""
+
+    return _anthropic_chat(_SYSTEM_PROMPT, _build_user_prompt(question, chunks))
+
+
+def _synthesize(question: str, chunks: list[RetrievedChunk]) -> str:
+    """Dispatch the Q&A prompt to the configured LLM backend."""
+
+    return synthesize_chat(_SYSTEM_PROMPT, _build_user_prompt(question, chunks))
 
 
 def _is_connection_error(exc: Exception) -> bool:

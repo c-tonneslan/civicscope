@@ -11,7 +11,12 @@ from datetime import date
 
 from fastapi import APIRouter
 
-from app.civic.schemas import OverviewResponse, TopicActivityResponse
+from app.civic.schemas import (
+    BriefResponse,
+    OverviewResponse,
+    TopicActivityResponse,
+)
+from fastapi import Query
 
 router = APIRouter(prefix="/civic/insights")
 
@@ -38,3 +43,22 @@ def topics(
     from app.civic.insights import topic_activity
 
     return TopicActivityResponse(**topic_activity(since, jurisdiction))
+
+
+@router.get("/brief", response_model=BriefResponse)
+def brief(
+    topic: str = Query(..., min_length=1, max_length=200),
+    jurisdiction: str | None = None,
+    since: date | None = None,
+) -> BriefResponse:
+    """A grounded, consulting-style briefing on a policy ``topic``.
+
+    Retrieves the relevant bills and synthesises an advisory summary (overview,
+    notable measures, status, guidance) with the same cite-or-refuse discipline as
+    ``/civic/ask``. Never 500s for the normal failure modes — returns
+    ``refused: true`` with an explanatory ``briefing`` instead.
+    """
+
+    from app.civic.brief import generate_brief
+
+    return generate_brief(topic, jurisdiction=jurisdiction, since=since)

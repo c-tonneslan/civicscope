@@ -287,23 +287,24 @@ class TestProviderDispatch:
         assert resp.answer == answer.NO_KEY_TEXT
         assert called["retrieve"] is False
 
-    def test_anthropic_with_key_dispatches_to_call_anthropic(self, monkeypatch):
+    def test_anthropic_with_key_dispatches_to_anthropic_backend(self, monkeypatch):
         from app.config import settings
         monkeypatch.setattr(settings, "llm_provider", "anthropic")
         monkeypatch.setattr(settings, "anthropic_api_key", "sk-test")
         monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6, jurisdiction=None: [_chunk()])
-        monkeypatch.setattr(answer, "_call_anthropic",
-                            lambda q, c: "Answer [Bill 260633].")
+        # synthesize_chat selects the backend by provider; mock the low-level call.
+        monkeypatch.setattr(answer, "_anthropic_chat",
+                            lambda system, user: "Answer [Bill 260633].")
         resp = answer.answer_question("q")
         assert resp.refused is False
         assert [c.file_no for c in resp.citations] == ["260633"]
 
-    def test_ollama_dispatches_to_call_ollama(self, monkeypatch):
+    def test_ollama_dispatches_to_ollama_backend(self, monkeypatch):
         from app.config import settings
         monkeypatch.setattr(settings, "llm_provider", "ollama")
         monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6, jurisdiction=None: [_chunk()])
-        monkeypatch.setattr(answer, "_call_ollama",
-                            lambda q, c: "Answer [Bill 260633].")
+        monkeypatch.setattr(answer, "_ollama_chat",
+                            lambda system, user: "Answer [Bill 260633].")
         resp = answer.answer_question("q")
         assert resp.refused is False
 

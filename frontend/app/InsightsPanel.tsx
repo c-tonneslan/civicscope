@@ -16,11 +16,39 @@ type Overview = {
 };
 type TopicItem = { topic: string; bills: number };
 type Topics = { since: string | null; topics: TopicItem[] };
+type Citation = { file_no: string; title: string };
+type Brief = {
+  topic: string;
+  matched_bills: number;
+  briefing: string;
+  citations: Citation[];
+  refused: boolean;
+};
 
 export default function InsightsPanel({ jurisdiction = "" }: { jurisdiction?: string }) {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [topics, setTopics] = useState<TopicItem[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [brief, setBrief] = useState<Brief | null>(null);
+  const [briefTopic, setBriefTopic] = useState<string | null>(null);
+  const [briefLoading, setBriefLoading] = useState(false);
+
+  async function openBrief(topic: string) {
+    setBriefTopic(topic);
+    setBrief(null);
+    setBriefLoading(true);
+    const jz = jurisdiction ? `&jurisdiction=${encodeURIComponent(jurisdiction)}` : "";
+    try {
+      const res = await fetch(
+        `${API_URL}/civic/insights/brief?topic=${encodeURIComponent(topic)}${jz}`
+      );
+      if (res.ok) setBrief(await res.json());
+    } catch {
+      /* leave brief null; the panel shows a gentle failure below */
+    } finally {
+      setBriefLoading(false);
+    }
+  }
 
   useEffect(() => {
     let live = true;
@@ -45,6 +73,9 @@ export default function InsightsPanel({ jurisdiction = "" }: { jurisdiction?: st
         setTopics(t.topics);
       })
       .catch(() => live && setFailed(true));
+    // A scope change invalidates any open briefing.
+    setBrief(null);
+    setBriefTopic(null);
     return () => {
       live = false;
     };
@@ -85,22 +116,63 @@ export default function InsightsPanel({ jurisdiction = "" }: { jurisdiction?: st
 
         {topics && topics.length > 0 && (
           <>
-            <p className="section-title">Legislative activity by topic</p>
+            <p className="section-title">
+              Legislative activity by topic{" "}
+              <span className="hint">— click a topic for an advisory briefing</span>
+            </p>
             <ul className="bars">
               {topics.map((t) => (
-                <li key={t.topic} className="bar-row">
-                  <span className="bar-label">{t.topic}</span>
-                  <span className="bar-track">
-                    <span
-                      className="bar-fill"
-                      style={{ width: `${maxBills ? (t.bills / maxBills) * 100 : 0}%` }}
-                    />
-                  </span>
-                  <span className="bar-value">{t.bills}</span>
+                <li key={t.topic}>
+                  <button
+                    type="button"
+                    className={`bar-row bar-button${
+                      briefTopic === t.topic ? " bar-active" : ""
+                    }`}
+                    onClick={() => openBrief(t.topic)}
+                    disabled={briefLoading}
+                  >
+                    <span className="bar-label">{t.topic}</span>
+                    <span className="bar-track">
+                      <span
+                        className="bar-fill"
+                        style={{ width: `${maxBills ? (t.bills / maxBills) * 100 : 0}%` }}
+                      />
+                    </span>
+                    <span className="bar-value">{t.bills}</span>
+                  </button>
                 </li>
               ))}
             </ul>
           </>
+        )}
+
+        {briefTopic && (
+          <div className="brief">
+            <p className="section-title">
+              Briefing: {briefTopic}
+              {brief && !brief.refused ? ` · ${brief.matched_bills} matching bills` : ""}
+            </p>
+            {briefLoading && <p className="note">Analyzing legislation…</p>}
+            {!briefLoading && !brief && (
+              <p className="note status-err">Couldn&apos;t generate a briefing.</p>
+            )}
+            {!briefLoading && brief && (
+              <>
+                <p className={`answer${brief.refused ? " refusal" : ""}`}>
+                  {brief.briefing}
+                </p>
+                {!brief.refused && brief.citations.length > 0 && (
+                  <ul className="citations">
+                    {brief.citations.map((c) => (
+                      <li key={c.file_no}>
+                        <span className="cite-id">#{c.file_no}</span> {c.title}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
+          </div>
         )}
       </div>
     </section>

@@ -373,8 +373,8 @@ class TestAskProviderDispatch:
     def test_ollama_provider_calls_ollama_backend(self, civic_client, civic_settings):
         civic_settings(llm_provider="ollama")
         with patch("app.civic.answer.retrieve", return_value=[_chunk()]), patch(
-            "app.civic.answer._call_ollama", return_value="X [Bill 260633].",
-        ) as ollama, patch("app.civic.answer._call_anthropic") as anthropic:
+            "app.civic.answer._ollama_chat", return_value="X [Bill 260633].",
+        ) as ollama, patch("app.civic.answer._anthropic_chat") as anthropic:
             resp = civic_client.post("/civic/ask", json={"question": "q"})
         assert resp.status_code == 200
         ollama.assert_called_once()
@@ -385,8 +385,8 @@ class TestAskProviderDispatch:
     ):
         civic_settings(llm_provider="anthropic", anthropic_api_key="sk-ant-test")
         with patch("app.civic.answer.retrieve", return_value=[_chunk()]), patch(
-            "app.civic.answer._call_anthropic", return_value="X [Bill 260633].",
-        ) as anthropic, patch("app.civic.answer._call_ollama") as ollama:
+            "app.civic.answer._anthropic_chat", return_value="X [Bill 260633].",
+        ) as anthropic, patch("app.civic.answer._ollama_chat") as ollama:
             resp = civic_client.post("/civic/ask", json={"question": "q"})
         assert resp.status_code == 200
         anthropic.assert_called_once()

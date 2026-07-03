@@ -280,3 +280,38 @@ button:disabled {
   outline: none;
   border-color: var(--accent);
 }
+
+/* --- Clickable topic bars + advisory brief ----------------------------- */
+.hint {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 12px;
+}
+.bar-button {
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  margin: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+.bar-button:hover:not(:disabled) {
+  background: var(--bg);
+}
+.bar-button:disabled {
+  cursor: default;
+}
+.bar-active {
+  background: var(--bg);
+}
+.bar-active .bar-fill {
+  background: var(--ok);
+}
+.brief {
+  margin-top: 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}

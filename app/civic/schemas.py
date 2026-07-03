@@ -160,6 +160,17 @@ class TopicActivityResponse(BaseModel):
     topics: list[TopicActivityItem]
 
 
+class BriefResponse(BaseModel):
+    """Body of ``GET /civic/insights/brief`` — a grounded advisory topic briefing."""
+
+    topic: str
+    jurisdiction: str | None
+    matched_bills: int          # how many bills in the corpus match the topic
+    briefing: str               # the advisory synthesis (or a refusal message)
+    citations: list[Citation]
+    refused: bool
+
+
 class JurisdictionItem(BaseModel):
     """One ingested jurisdiction and how many Matters it holds."""
 
