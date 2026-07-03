@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ---------------------------------------------------------------------------
@@ -78,6 +78,17 @@ class AskRequest(BaseModel):
         max_length=2000,
         description="A question about Philadelphia City Council legislation.",
     )
+
+    @field_validator("question")
+    @classmethod
+    def _strip_and_require_nonblank(cls, v: str) -> str:
+        # min_length=1 alone lets a whitespace-only body ("   ") through and into
+        # retrieval. Strip and reject blanks so a direct API caller can't drive the
+        # DB path with an effectively empty question (the UI already blocks this).
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("question must not be blank")
+        return stripped
 
 
 class Citation(BaseModel):

@@ -1,0 +1,195 @@
+:root {
+  --bg: #0b1220;
+  --panel: #131c2e;
+  --border: #243049;
+  --text: #e7ecf5;
+  --muted: #9aa7bd;
+  --accent: #4f8cff;
+  --accent-hover: #3d77e6;
+  --danger: #ff8585;
+  --ok: #7ee0a8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+  line-height: 1.55;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 64px 24px 96px;
+}
+
+.eyebrow {
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 16px;
+}
+
+h1 {
+  font-size: 2rem;
+  line-height: 1.25;
+  margin: 0 0 16px;
+}
+
+.lede {
+  color: var(--muted);
+  font-size: 1.05rem;
+  margin: 0 0 32px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+label {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+textarea {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.example-chip {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.example-chip:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--panel);
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 20px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.note {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 12px;
+}
+
+.status-err {
+  color: var(--danger);
+}
+
+.answer {
+  white-space: pre-wrap;
+  /* pre-wrap only breaks on whitespace; a single very long unbroken token in the
+     model output would overflow the fixed-width panel without this. */
+  overflow-wrap: anywhere;
+  margin: 0 0 20px;
+}
+
+.refusal {
+  border-left: 3px solid var(--border);
+  padding-left: 14px;
+  color: var(--muted);
+}
+
+.citations {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.citations li {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  /* A long unbroken citation title shouldn't overflow the panel. */
+  overflow-wrap: anywhere;
+}
+
+.cite-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.section-title {
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 24px 0 12px;
+}

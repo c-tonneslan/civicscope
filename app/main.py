@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from app import db
 from app import schemas
 from contextlib import asynccontextmanager
@@ -28,6 +29,16 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 ph = PasswordHasher()
+
+# CORS: the civicscope web UI runs on :3000 and calls this API on :8000, so the
+# browser needs the dev origin allowed for the POST /civic/ask fetch to succeed.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # --- Civic-intelligence slice (feat/civic-intel-slice) --------------------
 # Additive wiring for the civic RAG routers. These mount POST /civic/ingest and

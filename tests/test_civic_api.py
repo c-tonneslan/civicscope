@@ -434,10 +434,11 @@ class TestRouting:
 # function_scoped_fixture health check to acknowledge that intentionally.
 # ===========================================================================
 
-# A strategy for questions the AskRequest model accepts (1..2000 chars). We keep
-# the LLM/retrieval stubbed, so the exact text never reaches a real model; it
-# only has to survive validation and prompt construction.
-_valid_question = st.text(min_size=1, max_size=2000)
+# A strategy for questions the AskRequest model accepts (1..2000 chars, non-blank
+# after strip). We keep the LLM/retrieval stubbed, so the exact text never reaches
+# a real model; it only has to survive validation and prompt construction. The
+# model strips and rejects whitespace-only questions, so filter those out here.
+_valid_question = st.text(min_size=1, max_size=2000).filter(lambda s: s.strip())
 
 # HTTP header values are latin-1 at the wire, and httpx additionally rejects
 # non-ASCII / control chars before sending. To probe the TOKEN GATE (not httpx's

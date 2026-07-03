@@ -33,6 +33,28 @@ curl -s -X POST localhost:8000/civic/ask -H 'content-type: application/json' \
   -d '{"question":"What recent legislation concerns zoning?"}'
 ```
 
+### Web UI
+
+With the API running on `:8000`, start the Next.js frontend in a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) and ask a question from the
+browser. The UI (in [`frontend/`](frontend/)) is a single clean page that POSTs
+to `/civic/ask` and renders the grounded answer with its bill citations, or the
+refusal when the records don't support one. It reads the API base URL from
+`NEXT_PUBLIC_API_URL` (see `frontend/.env.local.example`, default
+`http://localhost:8000`); the backend allows the `:3000` dev origin via CORS.
+
+`POST /civic/ask` never crashes for the normal failure modes: an unreachable
+civic database, an unreachable Ollama, a missing Anthropic key, or an
+ungroundable question all return `refused: true` with a clear message rather than
+an HTTP 500. Whitespace-only questions are rejected at validation.
+
 ## Tests
 
 ```bash

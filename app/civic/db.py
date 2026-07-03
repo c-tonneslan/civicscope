@@ -54,6 +54,14 @@ def get_pool() -> ConnectionPool:
             min_size=1,
             max_size=10,
             open=True,
+            # Fail fast when the DB is unreachable instead of hanging on the
+            # default 30s pool timeout. answer_question() catches the resulting
+            # error and degrades to a graceful refusal, so a short wait keeps
+            # /civic/ask responsive when Postgres is down.
+            timeout=5.0,
+            # Bound the underlying TCP connect the same way, so a black-holed
+            # host can't stall past the pool timeout.
+            kwargs={"connect_timeout": 5},
         )
     return _pool
 

@@ -47,6 +47,15 @@ NO_KEY_TEXT = (
     "Retrieval still works."
 )
 
+# Message shown when the civic Postgres (retrieval store) can't be reached.
+# Retrieval runs before synthesis, so a DB/connection failure here must degrade
+# to a graceful refusal — never propagate as an unhandled 500.
+DB_DOWN_TEXT = (
+    "Retrieval is unavailable because the civic database isn't reachable. "
+    "Start it with `docker compose up -d` and ingest data "
+    "(see the README quickstart)."
+)
+
 # How many chunks to retrieve as grounding context.
 TOP_K = 6
 
@@ -275,7 +284,18 @@ def answer_question(question: str) -> AskResponse:
     if provider == "anthropic" and not getattr(settings, "anthropic_api_key", None):
         return AskResponse(answer=NO_KEY_TEXT, citations=[], refused=True)
 
-    chunks = retrieve(question, top_k=TOP_K)
+    # Retrieval runs BEFORE synthesis and hits the civic Postgres. If that store
+    # is unreachable/misconfigured (e.g. a psycopg pool timeout), degrade to a
+    # graceful refusal with a clear hint instead of letting the error propagate as
+    # an unhandled 500 — /ask must never crash for the normal failure modes.
+    try:
+        chunks = retrieve(question, top_k=TOP_K)
+    except Exception as exc:  # noqa: BLE001 - we intentionally never crash /ask
+        return AskResponse(
+            answer=f"{DB_DOWN_TEXT} (retrieval error: {type(exc).__name__})",
+            citations=[],
+            refused=True,
+        )
 
     # Nothing retrieved => nothing to ground on.
     if not chunks:
