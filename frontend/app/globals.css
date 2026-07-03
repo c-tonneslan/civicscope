@@ -254,3 +254,29 @@ button:disabled {
   color: var(--text);
   text-align: right;
 }
+
+/* --- Jurisdiction selector --------------------------------------------- */
+.jz-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.jz-row label {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.jz-row select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 14px;
+}
+.jz-row select:focus {
+  outline: none;
+  border-color: var(--accent);
+}

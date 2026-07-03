@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import InsightsPanel from "./InsightsPanel";
 
@@ -24,11 +24,27 @@ const EXAMPLES = [
   "What legislation relates to affordable housing?",
 ];
 
+type Jurisdiction = { slug: string; documents: number };
+
 export default function Home() {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AskResponse | null>(null);
+  // "" means all cities; otherwise a Legistar client slug.
+  const [jurisdiction, setJurisdiction] = useState("");
+  const [jurisdictions, setJurisdictions] = useState<Jurisdiction[]>([]);
+
+  useEffect(() => {
+    let live = true;
+    fetch(`${API_URL}/civic/jurisdictions`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d: { jurisdictions: Jurisdiction[] }) => live && setJurisdictions(d.jurisdictions))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -40,7 +56,10 @@ export default function Home() {
       const res = await fetch(`${API_URL}/civic/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({
+          question,
+          jurisdiction: jurisdiction || null,
+        }),
       });
       if (!res.ok) {
         setError(
@@ -69,6 +88,25 @@ export default function Home() {
       </p>
 
       <div className="panel">
+        {jurisdictions.length > 1 && (
+          <div className="jz-row">
+            <label htmlFor="jurisdiction">City</label>
+            <select
+              id="jurisdiction"
+              value={jurisdiction}
+              onChange={(e) => setJurisdiction(e.target.value)}
+              disabled={loading}
+            >
+              <option value="">All cities</option>
+              {jurisdictions.map((j) => (
+                <option key={j.slug} value={j.slug}>
+                  {j.slug} ({j.documents.toLocaleString()})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className="examples">
           {EXAMPLES.map((ex) => (
             <button
@@ -140,7 +178,7 @@ export default function Home() {
         </section>
       )}
 
-      <InsightsPanel />
+      <InsightsPanel jurisdiction={jurisdiction} />
     </main>
   );
 }

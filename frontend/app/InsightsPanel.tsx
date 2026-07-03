@@ -17,13 +17,15 @@ type Overview = {
 type TopicItem = { topic: string; bills: number };
 type Topics = { since: string | null; topics: TopicItem[] };
 
-export default function InsightsPanel() {
+export default function InsightsPanel({ jurisdiction = "" }: { jurisdiction?: string }) {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [topics, setTopics] = useState<TopicItem[] | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let live = true;
+    setFailed(false);
+    const qs = jurisdiction ? `?jurisdiction=${encodeURIComponent(jurisdiction)}` : "";
     // Treat any non-OK response as a failure (a 404 from an un-restarted backend,
     // or a 500) — those still RESOLVE the fetch, so without the res.ok guard we'd
     // parse an error body and render undefined fields. Throwing routes them to
@@ -34,8 +36,8 @@ export default function InsightsPanel() {
       return res.json();
     };
     Promise.all([
-      getJson("/civic/insights/overview"),
-      getJson("/civic/insights/topics"),
+      getJson(`/civic/insights/overview${qs}`),
+      getJson(`/civic/insights/topics${qs}`),
     ])
       .then(([o, t]: [Overview, Topics]) => {
         if (!live) return;
@@ -46,7 +48,7 @@ export default function InsightsPanel() {
     return () => {
       live = false;
     };
-  }, []);
+  }, [jurisdiction]);
 
   // Stay quiet unless the data is there — insights are a bonus view, so a backend
   // that isn't up must never break the Ask experience above.
