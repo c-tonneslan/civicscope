@@ -278,6 +278,27 @@ class JurisdictionsResponse(BaseModel):
     jurisdictions: list[JurisdictionItem]
 
 
+class BillListItem(BaseModel):
+    """One Matter in the browse listing (``GET /civic/bills``)."""
+
+    # file_no is nullable because civic_documents.file_no is a nullable column;
+    # a bill with no file number must serialize, not 500.
+    file_no: str | None
+    title: str | None
+    status: str | None
+    doc_type: str | None
+    intro_date: date | None
+
+
+class BillListResponse(BaseModel):
+    """Body of ``GET /civic/bills`` — a page of Matters plus the total count."""
+
+    bills: list[BillListItem]
+    total: int
+    limit: int
+    offset: int
+
+
 class DigestItem(BaseModel):
     """One bill in the what's-new digest (last_action_date is None for introduced)."""
 
