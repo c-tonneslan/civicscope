@@ -14,6 +14,7 @@ from fastapi import APIRouter
 from app.civic.schemas import (
     BriefResponse,
     OverviewResponse,
+    SponsorsResponse,
     TopicActivityResponse,
 )
 from fastapi import Query
@@ -62,3 +63,21 @@ def brief(
     from app.civic.brief import generate_brief
 
     return generate_brief(topic, jurisdiction=jurisdiction, since=since)
+
+
+@router.get("/sponsors", response_model=SponsorsResponse)
+def sponsors(
+    topic: str | None = None,
+    jurisdiction: str | None = None,
+    since: date | None = None,
+    limit: int = Query(10, ge=1, le=50),
+) -> SponsorsResponse:
+    """Most active sponsors, optionally scoped by ``?topic=`` / ``?jurisdiction=``.
+
+    With a topic this answers "who leads on <topic>?" — ranked by distinct bills
+    sponsored under the scope.
+    """
+
+    from app.civic.insights import top_sponsors
+
+    return SponsorsResponse(**top_sponsors(topic, jurisdiction, since, limit))

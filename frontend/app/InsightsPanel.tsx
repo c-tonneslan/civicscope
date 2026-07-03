@@ -24,25 +24,32 @@ type Brief = {
   citations: Citation[];
   refused: boolean;
 };
+type Sponsor = { name: string; bills: number };
 
 export default function InsightsPanel({ jurisdiction = "" }: { jurisdiction?: string }) {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [topics, setTopics] = useState<TopicItem[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [brief, setBrief] = useState<Brief | null>(null);
+  const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [briefTopic, setBriefTopic] = useState<string | null>(null);
   const [briefLoading, setBriefLoading] = useState(false);
 
   async function openBrief(topic: string) {
     setBriefTopic(topic);
     setBrief(null);
+    setSponsors([]);
     setBriefLoading(true);
     const jz = jurisdiction ? `&jurisdiction=${encodeURIComponent(jurisdiction)}` : "";
+    const t = encodeURIComponent(topic);
     try {
-      const res = await fetch(
-        `${API_URL}/civic/insights/brief?topic=${encodeURIComponent(topic)}${jz}`
-      );
-      if (res.ok) setBrief(await res.json());
+      // The briefing (LLM) and its leading sponsors (SQL) load in parallel.
+      const [briefRes, sponsorRes] = await Promise.all([
+        fetch(`${API_URL}/civic/insights/brief?topic=${t}${jz}`),
+        fetch(`${API_URL}/civic/insights/sponsors?topic=${t}${jz}&limit=5`),
+      ]);
+      if (briefRes.ok) setBrief(await briefRes.json());
+      if (sponsorRes.ok) setSponsors((await sponsorRes.json()).sponsors ?? []);
     } catch {
       /* leave brief null; the panel shows a gentle failure below */
     } finally {
@@ -75,6 +82,7 @@ export default function InsightsPanel({ jurisdiction = "" }: { jurisdiction?: st
       .catch(() => live && setFailed(true));
     // A scope change invalidates any open briefing.
     setBrief(null);
+    setSponsors([]);
     setBriefTopic(null);
     return () => {
       live = false;
@@ -171,6 +179,19 @@ export default function InsightsPanel({ jurisdiction = "" }: { jurisdiction?: st
                   </ul>
                 )}
               </>
+            )}
+            {!briefLoading && sponsors.length > 0 && (
+              <div className="sponsors">
+                <p className="section-title">Leading sponsors on this topic</p>
+                <ul className="sponsor-list">
+                  {sponsors.map((s) => (
+                    <li key={s.name}>
+                      <span className="sponsor-name">{s.name}</span>
+                      <span className="sponsor-count">{s.bills} bills</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
         )}

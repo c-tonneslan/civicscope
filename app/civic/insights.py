@@ -132,6 +132,66 @@ def topic_activity(since: date | None = None, jurisdiction: str | None = None) -
     return {"since": since, "topics": items}
 
 
+def top_sponsors(
+    topic: str | None = None,
+    jurisdiction: str | None = None,
+    since: date | None = None,
+    limit: int = 10,
+) -> dict:
+    """Most active sponsors, optionally scoped by topic / jurisdiction / since.
+
+    ``bills`` counts distinct Matters a person sponsored under the scope — so with
+    ``topic="housing"`` it answers "who leads on housing?". Built from the
+    ``civic_sponsors`` enrichment table joined to documents (and, for a topic, to
+    the matching chunks).
+    """
+
+    # Lazy import: reuse the same content-term reduction the lexical arm uses so a
+    # topic here means the same thing it does in retrieval / topic_activity.
+    from app.civic.retrieval import _content_terms
+
+    join_chunks = ""
+    clauses: list[str] = []
+    params: list = []
+    if topic:
+        join_chunks = (
+            "JOIN civic_chunks c ON c.document_id = d.id, "
+            "plainto_tsquery('english', %s) AS q"
+        )
+        clauses.append("c.tsv @@ q")
+        params.append(_content_terms(topic))
+    if jurisdiction is not None:
+        clauses.append("d.jurisdiction = %s")
+        params.append(jurisdiction)
+    if since is not None:
+        clauses.append("d.intro_date >= %s")
+        params.append(since)
+    where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+    params.append(limit)
+
+    with get_conn() as conn, conn.cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT s.name, count(DISTINCT d.id) AS bills
+            FROM civic_sponsors s
+            JOIN civic_documents d ON d.id = s.document_id
+            {join_chunks}
+            {where}
+            GROUP BY s.name
+            ORDER BY bills DESC, s.name
+            LIMIT %s;
+            """,
+            tuple(params),
+        )
+        rows = cur.fetchall()
+
+    return {
+        "topic": topic,
+        "jurisdiction": jurisdiction,
+        "sponsors": [{"name": name, "bills": bills} for name, bills in rows],
+    }
+
+
 def list_jurisdictions() -> dict:
     """List every ingested jurisdiction (Legistar client slug) with its bill count."""
 

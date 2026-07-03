@@ -348,6 +348,87 @@ def fetch_matter_text(
 
 
 # ---------------------------------------------------------------------------
+# Sponsors (who introduced each Matter)
+# ---------------------------------------------------------------------------
+
+
+def fetch_sponsors(
+    matter_id: str, *, client: str | None = None, http: httpx.Client
+) -> list[tuple[str, int | None]]:
+    """Best-effort sponsors for a Matter: ``[(name, sequence), ...]`` or ``[]``.
+
+    ``sequence`` 0 is the primary sponsor. Any failure (HTTP error, unexpected
+    shape) yields ``[]`` so sponsor enrichment never aborts the surrounding run.
+    """
+
+    client = client or settings.legistar_client
+    try:
+        resp = _get_with_retry(
+            http, f"{LEGISTAR_BASE}/{client}/Matters/{matter_id}/Sponsors"
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if not isinstance(data, list):
+            return []
+        out: list[tuple[str, int | None]] = []
+        for s in data:
+            if not isinstance(s, dict):
+                continue
+            name = (s.get("MatterSponsorName") or "").strip()
+            if name:
+                out.append((name, s.get("MatterSponsorSequence")))
+        return out
+    except Exception:  # noqa: BLE001 - sponsors are best-effort enrichment
+        logger.warning("no sponsors for Matter %s", matter_id, exc_info=True)
+        return []
+
+
+def backfill_sponsors(
+    client: str | None = None,
+    jurisdiction: str | None = None,
+    *,
+    http: httpx.Client | None = None,
+) -> int:
+    """Fetch + store sponsors for every already-ingested doc in a jurisdiction.
+
+    A standalone enrichment pass (documents must already exist) so sponsors can be
+    added without a full re-ingest. Commits periodically to bound the transaction
+    on a long run. Returns the number of documents processed.
+    """
+
+    client = client or settings.legistar_client
+    jurisdiction = jurisdiction or client
+
+    from .db import get_conn, upsert_sponsors
+
+    own_client = http is None
+    http = http or httpx.Client(headers={"User-Agent": USER_AGENT})
+    processed = 0
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT id, source_ref FROM civic_documents "
+                    "WHERE jurisdiction = %s ORDER BY id;",
+                    (jurisdiction,),
+                )
+                rows = cur.fetchall()
+            for doc_id, source_ref in rows:
+                sponsors = fetch_sponsors(source_ref, client=client, http=http)
+                upsert_sponsors(conn, doc_id, sponsors)
+                processed += 1
+                if processed % 100 == 0:
+                    conn.commit()
+                    logger.info("sponsors backfill: %d/%d", processed, len(rows))
+                time.sleep(ATTACHMENT_DELAY_SECONDS)
+            conn.commit()
+    finally:
+        if own_client:
+            http.close()
+    return processed
+
+
+# ---------------------------------------------------------------------------
 # Normalize
 # ---------------------------------------------------------------------------
 

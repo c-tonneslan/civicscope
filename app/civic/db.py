@@ -162,6 +162,20 @@ _DDL_STATEMENTS = [
     #    vector_cosine_ops => distances are cosine; lists=100 is fine at this scale.
     "CREATE INDEX IF NOT EXISTS civic_chunks_embedding_ivfflat "
     "ON civic_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);",
+    # 6. Sponsors: who introduced each Matter (one row per document+sponsor).
+    #    CASCADE-deleted with the parent; ``seq`` 0 is the primary sponsor.
+    """
+    CREATE TABLE IF NOT EXISTS civic_sponsors (
+        id          BIGSERIAL PRIMARY KEY,
+        document_id BIGINT NOT NULL REFERENCES civic_documents(id) ON DELETE CASCADE,
+        name        TEXT NOT NULL,
+        seq         INT,
+        UNIQUE (document_id, name)
+    );
+    """,
+    "CREATE INDEX IF NOT EXISTS civic_sponsors_name_idx ON civic_sponsors (name);",
+    "CREATE INDEX IF NOT EXISTS civic_sponsors_document_idx "
+    "ON civic_sponsors (document_id);",
 ]
 
 
@@ -207,6 +221,27 @@ _INSERT_CHUNK_SQL = """
         text      = EXCLUDED.text,
         embedding = EXCLUDED.embedding;
 """
+
+
+_INSERT_SPONSOR_SQL = """
+    INSERT INTO civic_sponsors (document_id, name, seq)
+    VALUES (%s, %s, %s)
+    ON CONFLICT (document_id, name) DO UPDATE SET seq = EXCLUDED.seq;
+"""
+
+
+def upsert_sponsors(conn, document_id: int, sponsors: Sequence) -> int:
+    """Replace a document's sponsors with ``sponsors`` (a seq of ``(name, seq)``).
+
+    Delete-then-insert so a re-sync that drops a sponsor never leaves a stale row.
+    Returns the number of sponsors written.
+    """
+
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM civic_sponsors WHERE document_id = %s;", (document_id,))
+        for name, seq in sponsors:
+            cur.execute(_INSERT_SPONSOR_SQL, (document_id, name, seq))
+    return len(sponsors)
 
 
 def upsert_document(conn, doc, chunks: Sequence) -> int:

@@ -171,6 +171,21 @@ class BriefResponse(BaseModel):
     refused: bool
 
 
+class SponsorItem(BaseModel):
+    """One sponsor and how many bills they sponsored under the query scope."""
+
+    name: str
+    bills: int
+
+
+class SponsorsResponse(BaseModel):
+    """Body of ``GET /civic/insights/sponsors`` — most active sponsors."""
+
+    topic: str | None
+    jurisdiction: str | None
+    sponsors: list[SponsorItem]
+
+
 class JurisdictionItem(BaseModel):
     """One ingested jurisdiction and how many Matters it holds."""
 
