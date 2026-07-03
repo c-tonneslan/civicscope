@@ -249,6 +249,22 @@ class SponsorsResponse(BaseModel):
     sponsors: list[SponsorItem]
 
 
+class BillSponsorItem(BaseModel):
+    """One sponsor of a specific bill, with its sponsorship sequence (0 = primary)."""
+
+    name: str
+    seq: int | None
+
+
+class BillSponsorsResponse(BaseModel):
+    """Body of ``GET /civic/insights/bill-sponsors`` — one bill's sponsors."""
+
+    file_no: str
+    found: bool
+    jurisdiction: str | None
+    sponsors: list[BillSponsorItem]
+
+
 class JurisdictionItem(BaseModel):
     """One ingested jurisdiction and how many Matters it holds."""
 

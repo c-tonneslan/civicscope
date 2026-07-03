@@ -12,6 +12,7 @@ from datetime import date
 from fastapi import APIRouter
 
 from app.civic.schemas import (
+    BillSponsorsResponse,
     BillTimelineResponse,
     BriefResponse,
     MemberRecordResponse,
@@ -97,6 +98,18 @@ def timeline(
     from app.civic.insights import bill_timeline
 
     return BillTimelineResponse(**bill_timeline(file_no, jurisdiction))
+
+
+@router.get("/bill-sponsors", response_model=BillSponsorsResponse)
+def bill_sponsors_route(
+    file_no: str = Query(..., min_length=1, max_length=64),
+    jurisdiction: str | None = None,
+) -> BillSponsorsResponse:
+    """The sponsors of one bill (seq 0 = primary) by ``?file_no=``."""
+
+    from app.civic.insights import bill_sponsors
+
+    return BillSponsorsResponse(**bill_sponsors(file_no, jurisdiction))
 
 
 @router.get("/velocity", response_model=VelocityResponse)
