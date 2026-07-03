@@ -171,6 +171,7 @@ def fetch_matters(
     http: httpx.Client | None = None,
     page_size: int = PAGE_SIZE,
     max_pages: int = MAX_PAGES,
+    start_page: int = 0,
 ) -> list[dict]:
     """Paginate Philadelphia Matters from Legistar and return the raw JSON dicts.
 
@@ -196,7 +197,10 @@ def fetch_matters(
     url = f"{LEGISTAR_BASE}/{client}/Matters"
 
     try:
-        for page in range(max_pages):
+        # ``start_page`` lets an incremental backfill skip already-ingested history
+        # (e.g. resume at page 25 after the first 25 pages are loaded) instead of
+        # re-fetching from the top. Paging math is unchanged: $skip = page*size.
+        for page in range(start_page, max_pages):
             params = {
                 "$top": page_size,
                 "$skip": page * page_size,
@@ -724,6 +728,7 @@ def run_ingest(
     *,
     full_text: bool = True,
     max_pages: int = MAX_PAGES,
+    start_page: int = 0,
 ) -> int:
     """Full pipeline: fetch -> normalize -> [full text] -> chunk -> embed -> upsert.
 
@@ -737,7 +742,7 @@ def run_ingest(
 
     client = client or settings.legistar_client
 
-    raw_matters = fetch_matters(client, max_pages=max_pages)
+    raw_matters = fetch_matters(client, max_pages=max_pages, start_page=start_page)
 
     docs: list[CivicDocument] = []
     for m in raw_matters:

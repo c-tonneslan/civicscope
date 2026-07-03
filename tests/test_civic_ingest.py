@@ -49,6 +49,16 @@ class TestFetchMatters:
         out = ingest.fetch_matters("phila", http=http, page_size=2, max_pages=2)
         assert len(out) == 4  # exactly 2 pages of 2
 
+    def test_start_page_skips_earlier_pages(self, legistar_client_factory, make_matter):
+        # pages by $skip index: 0 -> full, 1 -> short. start_page=1 fetches only
+        # page 1, so the page-0 rows are never requested.
+        p0 = [make_matter(MatterId=i) for i in range(2)]   # full page (index 0)
+        p1 = [make_matter(MatterId=99)]                     # short page (index 1)
+        http = legistar_client_factory([p0, p1])
+        out = ingest.fetch_matters("phila", http=http, page_size=2, max_pages=5,
+                                   start_page=1)
+        assert [m["MatterId"] for m in out] == [99]
+
     def test_non_list_payload_raises_value_error(self, legistar_client_factory):
         # A 200 carrying a JSON OBJECT is an OData/CDN error envelope, not data.
         http = legistar_client_factory([{"error": "throttled"}])
