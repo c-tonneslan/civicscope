@@ -17,6 +17,9 @@ pgvector==0.3.6
 fastembed==0.5.1
 # Anthropic Messages API client (optional; only if llm_provider="anthropic").
 anthropic==0.42.0
+# Pure-Python PDF text extraction for ingesting full bill text from Legistar
+# attachments (no native deps).
+pypdf==6.14.2
 
 # --- Test-only (civic slice exhaustive suite) ---
 # Property-based testing for the combinatorial input space (RRF, citations).

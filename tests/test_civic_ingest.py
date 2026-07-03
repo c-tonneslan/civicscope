@@ -433,6 +433,151 @@ class TestChunking:
 
 
 # ===========================================================================
+# Full bill text — attachment pick, PDF cleanup, fetch (mocked), hydration
+# ===========================================================================
+
+
+def _doc(**over):
+    base = dict(
+        source_ref="1", doc_type="Ordinance", file_no="1", title="A short title",
+        body_name="C", status="S", intro_date=None, url="u", raw={},
+    )
+    base.update(over)
+    return CivicDocument(**base)
+
+
+class TestChunkDocumentUsesBody:
+    def test_body_is_chunked_over_title(self):
+        # When a body is present it is the source text; the title is NOT chunked.
+        doc = _doc(title="short title", body="B" * 1700)
+        chunks = ingest.chunk_document(doc)
+        assert len(chunks) >= 2                       # 1700 chars -> multiple windows
+        assert all("short title" not in c.text for c in chunks)
+
+    def test_falls_back_to_title_when_body_none(self):
+        doc = _doc(title="Recognizing National Tennis Month.", body=None)
+        chunks = ingest.chunk_document(doc)
+        assert [c.text for c in chunks] == ["Recognizing National Tennis Month."]
+
+    def test_falls_back_to_title_when_body_empty(self):
+        # An empty extraction (scanned PDF) must not blank out the document.
+        doc = _doc(title="Real title", body="")
+        chunks = ingest.chunk_document(doc)
+        assert [c.text for c in chunks] == ["Real title"]
+
+
+class TestPickTextAttachment:
+    def test_prefers_named_text_file(self):
+        atts = [
+            {"MatterAttachmentName": "Exhibit A", "MatterAttachmentHyperlink": "u1"},
+            {"MatterAttachmentName": "Text File 5", "MatterAttachmentHyperlink": "u2"},
+        ]
+        assert ingest._pick_text_attachment(atts) == "u2"
+
+    def test_falls_back_to_first_linked(self):
+        atts = [
+            {"MatterAttachmentName": "Exhibit A", "MatterAttachmentHyperlink": "u1"},
+            {"MatterAttachmentName": "Exhibit B", "MatterAttachmentHyperlink": "u2"},
+        ]
+        assert ingest._pick_text_attachment(atts) == "u1"
+
+    def test_ignores_entries_without_hyperlink(self):
+        atts = [{"MatterAttachmentName": "Text File", "MatterAttachmentHyperlink": None}]
+        assert ingest._pick_text_attachment(atts) is None
+
+    def test_empty_and_non_list_yield_none(self):
+        assert ingest._pick_text_attachment([]) is None
+        assert ingest._pick_text_attachment({"not": "a list"}) is None
+
+
+class TestCleanBody:
+    def test_collapses_space_runs_and_blank_lines(self):
+        assert ingest._clean_body("a    b\n\n\n\nc") == "a b\n\nc"
+
+    def test_strips_format_chars(self):
+        assert "​" not in ingest._clean_body("a​b")
+
+    def test_caps_at_max_body_chars(self):
+        out = ingest._clean_body("x" * (ingest.MAX_BODY_CHARS + 500))
+        assert len(out) == ingest.MAX_BODY_CHARS
+
+
+def _text_transport(*, attachments, pdf_bytes=b"%PDF-1.4 fake", att_status=200,
+                    pdf_status=200):
+    """MockTransport: /Attachments -> JSON; any other URL -> PDF bytes."""
+
+    import json as _json
+
+    import httpx
+
+    def handler(request):
+        if request.url.path.endswith("/Attachments"):
+            return httpx.Response(att_status, content=_json.dumps(attachments),
+                                  headers={"content-type": "application/json"})
+        return httpx.Response(pdf_status, content=pdf_bytes)
+
+    return httpx.Client(transport=httpx.MockTransport(handler))
+
+
+class TestFetchMatterText:
+    def test_success_returns_cleaned_extracted_text(self, monkeypatch):
+        monkeypatch.setattr(ingest, "_extract_pdf_text", lambda data: "Bill    body\n\n\ntext")
+        http = _text_transport(
+            attachments=[{"MatterAttachmentName": "Text File",
+                          "MatterAttachmentHyperlink": "http://x/f.pdf"}])
+        assert ingest.fetch_matter_text("42", client="phila", http=http) == "Bill body\n\ntext"
+
+    def test_no_attachment_returns_none(self):
+        http = _text_transport(attachments=[])
+        assert ingest.fetch_matter_text("42", client="phila", http=http) is None
+
+    def test_empty_extraction_returns_none(self, monkeypatch):
+        # A scanned/image PDF extracts to "" -> None so ingest falls back to title.
+        monkeypatch.setattr(ingest, "_extract_pdf_text", lambda data: "   ")
+        http = _text_transport(
+            attachments=[{"MatterAttachmentName": "Text File",
+                          "MatterAttachmentHyperlink": "http://x/f.pdf"}])
+        assert ingest.fetch_matter_text("42", client="phila", http=http) is None
+
+    def test_attachment_http_error_returns_none(self):
+        http = _text_transport(attachments=[], att_status=500)
+        assert ingest.fetch_matter_text("42", client="phila", http=http) is None
+
+    def test_pdf_download_error_returns_none(self):
+        http = _text_transport(
+            attachments=[{"MatterAttachmentName": "Text File",
+                          "MatterAttachmentHyperlink": "http://x/f.pdf"}],
+            pdf_status=404)
+        assert ingest.fetch_matter_text("42", client="phila", http=http) is None
+
+    def test_extraction_exception_returns_none(self, monkeypatch):
+        def _raise(data):
+            raise ValueError("corrupt pdf")
+        monkeypatch.setattr(ingest, "_extract_pdf_text", _raise)
+        http = _text_transport(
+            attachments=[{"MatterAttachmentName": "Text File",
+                          "MatterAttachmentHyperlink": "http://x/f.pdf"}])
+        assert ingest.fetch_matter_text("42", client="phila", http=http) is None
+
+
+class TestHydrateBodies:
+    def test_sets_body_from_fetch(self, monkeypatch):
+        monkeypatch.setattr(ingest, "ATTACHMENT_DELAY_SECONDS", 0)  # no real pause
+        monkeypatch.setattr(ingest, "fetch_matter_text",
+                            lambda mid, **k: f"body-for-{mid}")
+        docs = [_doc(source_ref="7"), _doc(source_ref="9")]
+        ingest.hydrate_bodies(docs, client="phila", http=object())
+        assert [d.body for d in docs] == ["body-for-7", "body-for-9"]
+
+    def test_none_leaves_body_none(self, monkeypatch):
+        monkeypatch.setattr(ingest, "ATTACHMENT_DELAY_SECONDS", 0)
+        monkeypatch.setattr(ingest, "fetch_matter_text", lambda mid, **k: None)
+        docs = [_doc(source_ref="7")]
+        ingest.hydrate_bodies(docs, client="phila", http=object())
+        assert docs[0].body is None
+
+
+# ===========================================================================
 # upsert_documents — batching + delegation (DB/embedder patched)
 # ===========================================================================
 
@@ -531,6 +676,9 @@ class TestRunIngest:
 
         monkeypatch.setattr(ingest, "fetch_matters", lambda client: sample_matters)
         monkeypatch.setattr(ingest, "upsert_documents", fake_upsert)
+        # Keep the orchestration test network-free: full-text hydration is covered
+        # separately (TestFetchMatterText / TestHydrateBodies).
+        monkeypatch.setattr(ingest, "hydrate_bodies", lambda docs, **k: None)
 
         count = ingest.run_ingest("phila")
         refs = {d.source_ref for d in captured["docs"]}
@@ -566,4 +714,24 @@ class TestRunIngest:
                                             make_matter(MatterId=2, MatterTitle="ok")])
         monkeypatch.setattr(ingest, "normalize_matter", flaky_normalize)
         monkeypatch.setattr(ingest, "upsert_documents", lambda docs: len(docs))
+        monkeypatch.setattr(ingest, "hydrate_bodies", lambda docs, **k: None)
         assert ingest.run_ingest("phila") == 1
+
+    def test_full_text_true_hydrates_bodies(self, monkeypatch, make_matter):
+        monkeypatch.setattr(ingest, "fetch_matters",
+                            lambda client: [make_matter(MatterId=1, MatterTitle="ok")])
+        monkeypatch.setattr(ingest, "upsert_documents", lambda docs: len(docs))
+        called = {"n": 0}
+        monkeypatch.setattr(ingest, "hydrate_bodies",
+                            lambda docs, **k: called.__setitem__("n", len(docs)))
+        ingest.run_ingest("phila", full_text=True)
+        assert called["n"] == 1  # the one surviving doc was handed to hydration
+
+    def test_full_text_false_skips_hydration(self, monkeypatch, make_matter):
+        monkeypatch.setattr(ingest, "fetch_matters",
+                            lambda client: [make_matter(MatterId=1, MatterTitle="ok")])
+        monkeypatch.setattr(ingest, "upsert_documents", lambda docs: len(docs))
+        def _boom(docs, **k):
+            raise AssertionError("hydrate_bodies must not run when full_text=False")
+        monkeypatch.setattr(ingest, "hydrate_bodies", _boom)
+        assert ingest.run_ingest("phila", full_text=False) == 1

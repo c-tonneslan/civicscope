@@ -42,6 +42,12 @@ class CivicDocument:
     intro_date: date | None    # MatterIntroDate parsed to a date
     url: str | None            # canonical Legistar URL for the matter
     raw: dict                  # the full original Legistar record
+    # Full bill text extracted from the Matter's PDF attachment, when available.
+    # TRANSIENT: it is chunked/embedded for retrieval but NOT persisted to
+    # civic_documents (which stores only the short title for citation display), so
+    # adding it needs no DB migration. None -> ingest falls back to chunking the
+    # title, so a Matter is always ingestable even with no/what unreadable PDF.
+    body: str | None = None
 
 
 @dataclass

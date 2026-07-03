@@ -198,6 +198,113 @@ def fetch_matters(
 
 
 # ---------------------------------------------------------------------------
+# Full bill text (PDF attachments)
+# ---------------------------------------------------------------------------
+
+# Legistar exposes no plain-text body endpoint (the /Matters/{id}/Texts resource
+# returns 405); the full bill text lives in a PDF attachment. We fetch a Matter's
+# attachments, download the canonical text PDF, and extract it with pypdf. Every
+# step is BEST-EFFORT: any failure — no attachment, HTTP error, or a scanned
+# image-only PDF with no extractable text — yields None so ingest falls back to
+# chunking the title. A Matter is always ingestable on its title alone.
+
+# Legistar labels the canonical bill-text attachment "Text File N"; we prefer it
+# and fall back to the first attachment when no name matches.
+_TEXT_ATTACHMENT_HINT = "text file"
+
+# Attachment PDFs are small (tens–hundreds of KB); 30s is generous.
+PDF_TIMEOUT_SECONDS = 30.0
+
+# Upper bound on extracted body length. A pathological multi-hundred-page PDF would
+# otherwise explode chunk count and embedding cost; 40k chars (~10 pages of bill
+# text) is far more than any answer needs and keeps a single Matter bounded.
+MAX_BODY_CHARS = 40_000
+
+# Polite pause between attachment downloads, same rationale as REQUEST_DELAY.
+ATTACHMENT_DELAY_SECONDS = 0.2
+
+
+def _pick_text_attachment(attachments: list[dict]) -> str | None:
+    """Choose the best attachment URL to treat as the bill's full text.
+
+    Prefers an attachment whose name contains "text file" (Legistar's label for
+    the canonical bill text); otherwise falls back to the first attachment with a
+    hyperlink. Returns None when there is nothing downloadable.
+    """
+
+    if not isinstance(attachments, list):
+        return None
+    linked = [a for a in attachments if isinstance(a, dict) and a.get("MatterAttachmentHyperlink")]
+    for a in linked:
+        name = (a.get("MatterAttachmentName") or "").lower()
+        if _TEXT_ATTACHMENT_HINT in name:
+            return a["MatterAttachmentHyperlink"]
+    return linked[0]["MatterAttachmentHyperlink"] if linked else None
+
+
+def _extract_pdf_text(data: bytes) -> str:
+    """Extract text from PDF bytes; "" when the PDF has no extractable text.
+
+    A scanned/image-only bill (no text layer) yields "" rather than raising, so the
+    caller falls back to the title. pypdf is imported lazily to keep the pure
+    pipeline functions importable without it.
+    """
+
+    from io import BytesIO
+
+    from pypdf import PdfReader
+
+    reader = PdfReader(BytesIO(data))
+    return "\n".join(page.extract_text() or "" for page in reader.pages)
+
+
+# Collapses the runs of spaces and blank lines that pdf text extraction leaves
+# behind (Legistar bill PDFs are justified, so extraction yields ragged spacing).
+_WS_RUN_RE = re.compile(r"[ \t]+")
+_BLANK_LINES_RE = re.compile(r"\n\s*\n+")
+
+
+def _clean_body(text: str) -> str:
+    """Normalize extracted PDF text: unify whitespace, drop format chars, cap size."""
+
+    text = "".join(ch for ch in text if unicodedata.category(ch) != "Cf")
+    text = _WS_RUN_RE.sub(" ", text)
+    text = _BLANK_LINES_RE.sub("\n\n", text)
+    return text.strip()[:MAX_BODY_CHARS]
+
+
+def fetch_matter_text(
+    matter_id: str, *, client: str | None = None, http: httpx.Client
+) -> str | None:
+    """Best-effort full bill text for one Matter, or None to fall back to the title.
+
+    Fetches the Matter's attachments, downloads the canonical text PDF, and returns
+    its cleaned extracted text. Swallows every failure (missing attachment, HTTP
+    error, unreadable/scanned PDF) into None so one bad Matter never aborts ingest.
+    """
+
+    client = client or settings.legistar_client
+    try:
+        resp = http.get(
+            f"{LEGISTAR_BASE}/{client}/Matters/{matter_id}/Attachments",
+            timeout=PDF_TIMEOUT_SECONDS,
+        )
+        resp.raise_for_status()
+        url = _pick_text_attachment(resp.json())
+        if not url:
+            return None
+
+        pdf = http.get(url, timeout=PDF_TIMEOUT_SECONDS)
+        pdf.raise_for_status()
+        body = _clean_body(_extract_pdf_text(pdf.content))
+        # Treat an empty extraction (scanned/image PDF) as "no text" -> fall back.
+        return body or None
+    except Exception:  # noqa: BLE001 - full text is best-effort; fall back to title
+        logger.warning("no full text for Matter %s; using title", matter_id, exc_info=True)
+        return None
+
+
+# ---------------------------------------------------------------------------
 # Normalize
 # ---------------------------------------------------------------------------
 
@@ -367,13 +474,17 @@ def _split_text(text: str, size: int, overlap: int) -> list[str]:
 def chunk_document(doc: CivicDocument) -> list[CivicChunk]:
     """Split a document's text into ordered ``CivicChunk`` records.
 
-    Chunks back-reference their parent by ``source_ref`` and ``file_no`` so the
-    upsert layer can attach them to the right document row and the answer layer
-    can cite them. ``chunk_index`` is the deterministic ordinal within the
-    document. Embeddings are filled in later, in one batch, by ``upsert_documents``.
+    Chunks the full bill ``body`` when it was extracted from the PDF attachment,
+    else falls back to the ``title`` — so a Matter with no readable attachment is
+    still retrievable on its title. Chunks back-reference their parent by
+    ``source_ref`` and ``file_no`` so the upsert layer can attach them to the right
+    document row and the answer layer can cite them. ``chunk_index`` is the
+    deterministic ordinal within the document. Embeddings are filled in later, in
+    one batch, by ``upsert_documents``.
     """
 
-    pieces = _split_text(doc.title, CHUNK_SIZE_CHARS, CHUNK_OVERLAP_CHARS)
+    source_text = doc.body or doc.title or ""
+    pieces = _split_text(source_text, CHUNK_SIZE_CHARS, CHUNK_OVERLAP_CHARS)
     return [
         CivicChunk(
             source_ref=doc.source_ref,
@@ -448,11 +559,42 @@ def upsert_documents(docs: list[CivicDocument]) -> int:
 # ---------------------------------------------------------------------------
 
 
-def run_ingest(client: str | None = None) -> int:
-    """Full pipeline: fetch -> normalize -> chunk -> embed -> upsert.
+def hydrate_bodies(
+    docs: list[CivicDocument],
+    *,
+    client: str | None = None,
+    http: httpx.Client | None = None,
+) -> None:
+    """Fill each document's ``body`` with its full bill text (best-effort, in place).
+
+    One shared HTTP client walks the documents, downloading + extracting each
+    Matter's PDF attachment (throttled). Any Matter whose text can't be fetched
+    keeps ``body = None`` and is later chunked on its title. Separated from
+    ``run_ingest`` so it is independently testable and so a caller can skip it
+    (title-only ingest) when the network cost isn't wanted.
+    """
+
+    client = client or settings.legistar_client
+    own_client = http is None
+    http = http or httpx.Client(headers={"User-Agent": USER_AGENT})
+    try:
+        for i, doc in enumerate(docs):
+            doc.body = fetch_matter_text(doc.source_ref, client=client, http=http)
+            # Throttle between downloads, but not after the last one.
+            if i < len(docs) - 1:
+                time.sleep(ATTACHMENT_DELAY_SECONDS)
+    finally:
+        if own_client:
+            http.close()
+
+
+def run_ingest(client: str | None = None, *, full_text: bool = True) -> int:
+    """Full pipeline: fetch -> normalize -> [full text] -> chunk -> embed -> upsert.
 
     Returns the number of documents ingested. This is the single entry point the
-    ``POST /civic/ingest`` router calls.
+    ``POST /civic/ingest`` router calls. ``full_text`` (default True) fetches each
+    Matter's PDF attachment for the real bill body; pass False for a fast,
+    network-light title-only ingest.
     """
 
     client = client or settings.legistar_client
@@ -483,5 +625,11 @@ def run_ingest(client: str | None = None) -> int:
     # Drop Matters with no usable text: there is nothing to chunk, embed, or cite,
     # so they would only add empty rows that can never be retrieved.
     docs = [d for d in docs if d.title]
+
+    # Enrich with full bill text from PDF attachments (best-effort; falls back to
+    # the title per Matter). Done after the title filter so we never spend a
+    # download on a Matter we're about to drop.
+    if full_text:
+        hydrate_bodies(docs, client=client)
 
     return upsert_documents(docs)
