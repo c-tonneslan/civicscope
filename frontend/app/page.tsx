@@ -18,6 +18,13 @@ type AskResponse = {
   refused: boolean;
 };
 
+// NDJSON events from POST /civic/ask/stream (see app/civic/streaming.py).
+// A token is a live answer fragment; the final event carries the authoritative
+// verdict (citations + refused) — the UI renders trust only from it.
+type StreamEvent =
+  | { type: "token"; text: string }
+  | { type: "final"; answer: string; citations: Citation[]; refused: boolean };
+
 const EXAMPLES = [
   "What recent legislation concerns zoning?",
   "What legislation honors Philadelphia schools?",
@@ -32,6 +39,9 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AskResponse | null>(null);
+  // Answer text accumulated live from token events while the stream is open.
+  // The final event overwrites `result`, so this is only shown mid-stream.
+  const [streamed, setStreamed] = useState("");
   // "" means all cities; otherwise a Legistar client slug.
   const [jurisdiction, setJurisdiction] = useState("");
   const [jurisdictions, setJurisdictions] = useState<Jurisdiction[]>([]);
@@ -53,8 +63,9 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setStreamed("");
     try {
-      const res = await fetch(`${API_URL}/civic/ask`, {
+      const res = await fetch(`${API_URL}/civic/ask/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -62,14 +73,46 @@ export default function Home() {
           jurisdiction: jurisdiction || null,
         }),
       });
-      if (!res.ok) {
+      if (!res.ok || !res.body) {
         setError(
           `The civicscope API returned ${res.status}. Is it running and ingested on :8000?`
         );
         return;
       }
-      const data: AskResponse = await res.json();
-      setResult(data);
+      // Read the NDJSON stream: append token text live for perceived speed,
+      // then overwrite `result` with the authoritative final event so the
+      // existing refusal / answer / citation render block is reused verbatim.
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      const handle = (line: string) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+        const ev = JSON.parse(trimmed) as StreamEvent;
+        if (ev.type === "token") {
+          setStreamed((prev) => prev + ev.text);
+        } else {
+          setResult({
+            answer: ev.answer,
+            citations: ev.citations,
+            refused: ev.refused,
+          });
+        }
+      };
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let nl = buffer.indexOf("\n");
+        while (nl !== -1) {
+          handle(buffer.slice(0, nl));
+          buffer = buffer.slice(nl + 1);
+          nl = buffer.indexOf("\n");
+        }
+      }
+      // Flush a trailing partial line (the final event may arrive without a
+      // trailing newline being read as a separate chunk).
+      if (buffer) handle(buffer);
     } catch {
       setError(
         `Couldn't reach the civicscope API at ${API_URL} — is it running on :8000?`
@@ -144,6 +187,14 @@ export default function Home() {
         <p className="note status-err" style={{ marginTop: 24 }}>
           {error}
         </p>
+      )}
+
+      {!result && loading && streamed && (
+        <section style={{ marginTop: 24 }}>
+          <div className="panel">
+            <p className="answer">{streamed}</p>
+          </div>
+        </section>
       )}
 
       {result && (

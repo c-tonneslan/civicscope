@@ -12,6 +12,8 @@ Uses the ``civic_client`` fixture (a bare TestClient) from conftest.
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 pytest.importorskip("app.civic.answer",
@@ -106,6 +108,59 @@ class TestAskEndpoint:
         civic_client.post("/civic/ask",
                           json={"question": "q", "jurisdiction": "chicago"})
         assert seen["jurisdiction"] == "chicago"
+
+
+# ===========================================================================
+# POST /civic/ask/stream
+# ===========================================================================
+
+
+class TestAskStreamEndpoint:
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {},                              # missing question
+            {"question": ""},                # below min_length=1
+            {"question": "x" * 2001},        # above max_length=2000
+            {"question": 123},               # wrong type
+            {"question": None},              # null
+        ],
+    )
+    def test_validation_errors_422(self, civic_client, body):
+        # Same AskRequest validation as /ask, before the stream starts.
+        resp = civic_client.post("/civic/ask/stream", json=body)
+        assert resp.status_code == 422
+
+    def test_streams_ndjson_ending_in_final(self, civic_client, monkeypatch):
+        canned = [
+            '{"type":"token","text":"In committee [Bill 260633]."}\n',
+            '{"type":"final","answer":"In committee [Bill 260633]."'
+            ',"citations":[{"file_no":"260633","title":"Ord X"}],"refused":false}\n',
+        ]
+        monkeypatch.setattr("app.civic.streaming.stream_answer",
+                            lambda q, jurisdiction=None: iter(canned))
+        resp = civic_client.post("/civic/ask/stream",
+                                 json={"question": "what passed?"})
+        assert resp.status_code == 200
+        assert "application/x-ndjson" in resp.headers["content-type"]
+        lines = [ln for ln in resp.text.split("\n") if ln]
+        final = json.loads(lines[-1])
+        assert final["type"] == "final"
+        assert final["refused"] is False
+        assert final["citations"] == [{"file_no": "260633", "title": "Ord X"}]
+
+    def test_refusal_stream_is_200_with_refused_final(self, civic_client, monkeypatch):
+        canned = [
+            '{"type":"final","answer":"I can\'t ground this."'
+            ',"citations":[],"refused":true}\n',
+        ]
+        monkeypatch.setattr("app.civic.streaming.stream_answer",
+                            lambda q, jurisdiction=None: iter(canned))
+        resp = civic_client.post("/civic/ask/stream", json={"question": "obscure"})
+        assert resp.status_code == 200
+        final = json.loads([ln for ln in resp.text.split("\n") if ln][-1])
+        assert final["refused"] is True
+        assert final["citations"] == []
 
 
 # ===========================================================================
