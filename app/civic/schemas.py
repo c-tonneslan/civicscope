@@ -276,3 +276,22 @@ class JurisdictionsResponse(BaseModel):
     """Body of ``GET /civic/jurisdictions`` — the cities currently ingested."""
 
     jurisdictions: list[JurisdictionItem]
+
+
+class DigestItem(BaseModel):
+    """One bill in the what's-new digest (last_action_date is None for introduced)."""
+
+    file_no: str | None
+    title: str | None
+    status: str | None
+    intro_date: date | None
+    last_action_date: date | None
+
+
+class RecentActivityResponse(BaseModel):
+    """Body of ``GET /civic/insights/recent`` — recently introduced + enacted bills."""
+
+    jurisdiction: str | None
+    days: int
+    introduced: list[DigestItem]
+    enacted: list[DigestItem]

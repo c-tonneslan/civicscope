@@ -51,6 +51,7 @@ from app.civic.routers import (
     ask as civic_ask,
     stream as civic_stream,
     insights as civic_insights,
+    digest as civic_digest,
     jurisdictions as civic_jurisdictions,
 )
 
@@ -58,6 +59,7 @@ app.include_router(civic_ingest.router)         # POST /civic/ingest
 app.include_router(civic_ask.router)            # POST /civic/ask
 app.include_router(civic_stream.router)         # POST /civic/ask/stream
 app.include_router(civic_insights.router)       # GET  /civic/insights/{overview,topics}
+app.include_router(civic_digest.router)         # GET  /civic/insights/recent
 app.include_router(civic_jurisdictions.router)  # GET  /civic/jurisdictions
 # --------------------------------------------------------------------------
 
