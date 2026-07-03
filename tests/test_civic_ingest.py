@@ -735,3 +735,18 @@ class TestRunIngest:
             raise AssertionError("hydrate_bodies must not run when full_text=False")
         monkeypatch.setattr(ingest, "hydrate_bodies", _boom)
         assert ingest.run_ingest("phila", full_text=False) == 1
+
+    def test_large_run_upserts_in_bounded_batches(self, monkeypatch, make_matter):
+        # 5 docs with a batch size of 2 -> upsert_documents called 3x (2+2+1), each
+        # with at most the batch size, and the total still sums correctly.
+        matters = [make_matter(MatterId=i, MatterTitle="ok") for i in range(5)]
+        monkeypatch.setattr(ingest, "fetch_matters", lambda client, **k: matters)
+        monkeypatch.setattr(ingest, "UPSERT_BATCH_SIZE", 2)
+        monkeypatch.setattr(ingest, "hydrate_bodies", lambda docs, **k: None)
+        sizes = []
+        monkeypatch.setattr(ingest, "upsert_documents",
+                            lambda docs: sizes.append(len(docs)) or len(docs))
+        total = ingest.run_ingest("phila", full_text=False)
+        assert total == 5
+        assert sizes == [2, 2, 1]
+        assert max(sizes) <= 2  # no batch ever exceeds the bound

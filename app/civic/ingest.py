@@ -153,6 +153,12 @@ MAX_PAGES = 10
 CHUNK_SIZE_CHARS = 800
 CHUNK_OVERLAP_CHARS = 100
 
+# How many documents to hydrate + embed + upsert per batch. Bounds peak memory
+# (one batch's chunks in a single fastembed call) and transaction size, so a
+# backfill of tens of thousands of Matters stays safe. One page's worth is a
+# natural unit.
+UPSERT_BATCH_SIZE = 200
+
 
 # ---------------------------------------------------------------------------
 # Fetch
@@ -758,10 +764,25 @@ def run_ingest(
     # so they would only add empty rows that can never be retrieved.
     docs = [d for d in docs if d.title]
 
-    # Enrich with full bill text from PDF attachments (best-effort; falls back to
-    # the title per Matter). Done after the title filter so we never spend a
-    # download on a Matter we're about to drop.
-    if full_text:
-        hydrate_bodies(docs, client=client)
+    # Process in bounded BATCHES so a large backfill never builds one giant embed
+    # call or a single monster transaction (both memory- and lock-unsafe at tens of
+    # thousands of records). Each batch hydrates -> embeds -> upserts on its own, so
+    # peak memory is one batch's chunks and each transaction is small. One shared
+    # HTTP client serves every batch's attachment downloads.
+    total = 0
+    http = httpx.Client(headers={"User-Agent": USER_AGENT}) if full_text else None
+    try:
+        for start in range(0, len(docs), UPSERT_BATCH_SIZE):
+            batch = docs[start : start + UPSERT_BATCH_SIZE]
+            if full_text:
+                # Enrich with full bill text from PDF attachments (best-effort; falls
+                # back to the title per Matter).
+                hydrate_bodies(batch, client=client, http=http)
+            total += upsert_documents(batch)
+            if len(docs) > UPSERT_BATCH_SIZE:
+                logger.info("ingest: upserted %d/%d documents", total, len(docs))
+    finally:
+        if http is not None:
+            http.close()
 
-    return upsert_documents(docs)
+    return total
