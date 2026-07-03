@@ -285,6 +285,8 @@ def test_ddl_first_statement_enables_vector_extension():
         "create index if not exists civic_documents_jurisdiction_idx",
         "create table if not exists civic_sponsors",
         "create index if not exists civic_sponsors_name_idx",
+        "create table if not exists civic_history",
+        "create index if not exists civic_history_action_date_idx",
     ],
 )
 def test_ddl_declares_expected_object(needle):
@@ -325,8 +327,9 @@ def test_all_ddl_statements_are_idempotent():
 def test_ddl_has_expected_statement_count():
     # extension + documents table + 3 migration stmts (add col, drop old constraint,
     # add composite constraint) + jurisdiction index + chunks table + 2 chunk
-    # indexes + sponsors table + 2 sponsor indexes.
-    assert len(db._DDL_STATEMENTS) == 12
+    # indexes + sponsors table + 2 sponsor indexes + history table + 2 history
+    # indexes.
+    assert len(db._DDL_STATEMENTS) == 15
 
 
 def test_tsv_generated_from_text_with_english_config():

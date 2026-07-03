@@ -25,10 +25,12 @@ type Brief = {
   refused: boolean;
 };
 type Sponsor = { name: string; bills: number };
+type Velocity = { enacted: number; avg_days_to_enact: number | null };
 
 export default function InsightsPanel({ jurisdiction = "" }: { jurisdiction?: string }) {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [topics, setTopics] = useState<TopicItem[] | null>(null);
+  const [velocity, setVelocity] = useState<Velocity | null>(null);
   const [failed, setFailed] = useState(false);
   const [brief, setBrief] = useState<Brief | null>(null);
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
@@ -73,11 +75,13 @@ export default function InsightsPanel({ jurisdiction = "" }: { jurisdiction?: st
     Promise.all([
       getJson(`/civic/insights/overview${qs}`),
       getJson(`/civic/insights/topics${qs}`),
+      getJson(`/civic/insights/velocity${qs}`),
     ])
-      .then(([o, t]: [Overview, Topics]) => {
+      .then(([o, t, v]: [Overview, Topics, Velocity]) => {
         if (!live) return;
         setOverview(o);
         setTopics(t.topics);
+        setVelocity(v);
       })
       .catch(() => live && setFailed(true));
     // A scope change invalidates any open briefing.
@@ -119,6 +123,14 @@ export default function InsightsPanel({ jurisdiction = "" }: { jurisdiction?: st
               </span>
               <span className="stat-label">top statuses</span>
             </div>
+            {velocity && velocity.avg_days_to_enact != null && (
+              <div className="stat">
+                <span className="stat-num">
+                  ~{velocity.avg_days_to_enact} days · {velocity.enacted.toLocaleString()} enacted
+                </span>
+                <span className="stat-label">avg time to enact</span>
+              </div>
+            )}
           </div>
         )}
 

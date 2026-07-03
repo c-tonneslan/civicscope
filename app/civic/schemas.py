@@ -171,6 +171,34 @@ class BriefResponse(BaseModel):
     refused: bool
 
 
+class TimelineEntry(BaseModel):
+    """One action in a bill's legislative history."""
+
+    action_date: date | None
+    action: str | None
+    passed: str | None
+
+
+class BillTimelineResponse(BaseModel):
+    """Body of ``GET /civic/insights/timeline`` — one bill's action history."""
+
+    file_no: str
+    found: bool
+    jurisdiction: str | None
+    title: str | None
+    status: str | None
+    url: str | None
+    timeline: list[TimelineEntry]
+
+
+class VelocityResponse(BaseModel):
+    """Body of ``GET /civic/insights/velocity`` — how fast enacted bills move."""
+
+    jurisdiction: str | None
+    enacted: int
+    avg_days_to_enact: int | None
+
+
 class SponsorItem(BaseModel):
     """One sponsor and how many bills they sponsored under the query scope."""
 

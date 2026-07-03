@@ -192,6 +192,84 @@ def top_sponsors(
     }
 
 
+def bill_timeline(file_no: str, jurisdiction: str | None = None) -> dict:
+    """The action history (legislative timeline) for one bill, chronologically.
+
+    Resolves ``file_no`` (optionally within a jurisdiction) to a document, then
+    returns its ordered history. ``found`` is False when no such bill exists.
+    """
+
+    clause = "" if jurisdiction is None else " AND jurisdiction = %s"
+    params: tuple = (file_no,) if jurisdiction is None else (file_no, jurisdiction)
+
+    with get_conn() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT id, jurisdiction, title, status, url FROM civic_documents "
+            f"WHERE file_no = %s{clause} ORDER BY intro_date DESC NULLS LAST LIMIT 1;",
+            params,
+        )
+        row = cur.fetchone()
+        if row is None:
+            return {"file_no": file_no, "found": False, "jurisdiction": jurisdiction,
+                    "title": None, "status": None, "url": None, "timeline": []}
+        doc_id, jz, title, status, url = row
+        cur.execute(
+            "SELECT action_date, action_name, passed_flag FROM civic_history "
+            "WHERE document_id = %s ORDER BY action_date NULLS LAST, seq;",
+            (doc_id,),
+        )
+        timeline = [
+            {"action_date": d, "action": a, "passed": p}
+            for d, a, p in cur.fetchall()
+        ]
+
+    return {"file_no": file_no, "found": True, "jurisdiction": jz, "title": title,
+            "status": status, "url": url, "timeline": timeline}
+
+
+def legislative_velocity(
+    jurisdiction: str | None = None, since: date | None = None
+) -> dict:
+    """How fast enacted legislation moves: count + avg days intro -> final action.
+
+    Joins each enacted bill to the latest date in its history; the day count is the
+    DATE subtraction Postgres does natively. Returns ``avg_days_to_enact = None``
+    when nothing qualifies (so the caller can render "n/a" rather than 0).
+    """
+
+    where = ["d.status = 'ENACTED'", "d.intro_date IS NOT NULL", "h.last_action IS NOT NULL"]
+    params: list = []
+    if jurisdiction is not None:
+        where.append("d.jurisdiction = %s")
+        params.append(jurisdiction)
+    if since is not None:
+        where.append("d.intro_date >= %s")
+        params.append(since)
+    wsql = " AND ".join(where)
+
+    with get_conn() as conn, conn.cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT count(*) AS enacted,
+                   round(avg(h.last_action - d.intro_date))::int AS avg_days
+            FROM civic_documents d
+            JOIN (
+                SELECT document_id, max(action_date) AS last_action
+                FROM civic_history GROUP BY document_id
+            ) h ON h.document_id = d.id
+            WHERE {wsql};
+            """,
+            tuple(params),
+        )
+        enacted, avg_days = cur.fetchone()
+
+    return {
+        "jurisdiction": jurisdiction,
+        "enacted": enacted or 0,
+        "avg_days_to_enact": avg_days,  # None when no enacted bills in scope
+    }
+
+
 def list_jurisdictions() -> dict:
     """List every ingested jurisdiction (Legistar client slug) with its bill count."""
 

@@ -176,6 +176,24 @@ _DDL_STATEMENTS = [
     "CREATE INDEX IF NOT EXISTS civic_sponsors_name_idx ON civic_sponsors (name);",
     "CREATE INDEX IF NOT EXISTS civic_sponsors_document_idx "
     "ON civic_sponsors (document_id);",
+    # 7. Action history: each Matter's legislative timeline (introduced -> heard ->
+    #    reported -> readings -> enacted). ``seq`` orders the entries as fetched;
+    #    queries sort by ``action_date``. CASCADE-deleted with the parent.
+    """
+    CREATE TABLE IF NOT EXISTS civic_history (
+        id          BIGSERIAL PRIMARY KEY,
+        document_id BIGINT NOT NULL REFERENCES civic_documents(id) ON DELETE CASCADE,
+        seq         INT NOT NULL,
+        action_date DATE,
+        action_name TEXT,
+        passed_flag TEXT,
+        UNIQUE (document_id, seq)
+    );
+    """,
+    "CREATE INDEX IF NOT EXISTS civic_history_document_idx "
+    "ON civic_history (document_id);",
+    "CREATE INDEX IF NOT EXISTS civic_history_action_date_idx "
+    "ON civic_history (action_date);",
 ]
 
 
@@ -242,6 +260,33 @@ def upsert_sponsors(conn, document_id: int, sponsors: Sequence) -> int:
         for name, seq in sponsors:
             cur.execute(_INSERT_SPONSOR_SQL, (document_id, name, seq))
     return len(sponsors)
+
+
+_INSERT_HISTORY_SQL = """
+    INSERT INTO civic_history (document_id, seq, action_date, action_name, passed_flag)
+    VALUES (%s, %s, %s, %s, %s)
+    ON CONFLICT (document_id, seq) DO UPDATE SET
+        action_date = EXCLUDED.action_date,
+        action_name = EXCLUDED.action_name,
+        passed_flag = EXCLUDED.passed_flag;
+"""
+
+
+def upsert_history(conn, document_id: int, entries: Sequence) -> int:
+    """Replace a document's action history with ``entries`` (delete-then-insert).
+
+    Each entry is ``(seq, action_date, action_name, passed_flag)``. Returns the
+    number of history rows written.
+    """
+
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM civic_history WHERE document_id = %s;", (document_id,))
+        for seq, action_date, action_name, passed_flag in entries:
+            cur.execute(
+                _INSERT_HISTORY_SQL,
+                (document_id, seq, action_date, action_name, passed_flag),
+            )
+    return len(entries)
 
 
 def upsert_document(conn, doc, chunks: Sequence) -> int:

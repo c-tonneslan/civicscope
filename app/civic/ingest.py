@@ -447,6 +447,94 @@ def backfill_sponsors(
 
 
 # ---------------------------------------------------------------------------
+# Action history (each Matter's legislative timeline)
+# ---------------------------------------------------------------------------
+
+
+def fetch_history(
+    matter_id: str, *, client: str | None = None, http: httpx.Client
+) -> list[tuple[int, date | None, str | None, str | None]]:
+    """Best-effort action history for a Matter.
+
+    Returns ``[(seq, action_date, action_name, passed_flag), ...]`` in the order
+    Legistar returns them (``seq`` is that index). Any failure yields ``[]`` so
+    history enrichment never aborts the surrounding run.
+    """
+
+    client = client or settings.legistar_client
+    try:
+        resp = _get_with_retry(
+            http, f"{LEGISTAR_BASE}/{client}/Matters/{matter_id}/Histories"
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if not isinstance(data, list):
+            return []
+        out: list[tuple[int, date | None, str | None, str | None]] = []
+        for i, h in enumerate(data):
+            if not isinstance(h, dict):
+                continue
+            action = (h.get("MatterHistoryActionName") or "").strip() or None
+            action_date = _parse_intro_date(h.get("MatterHistoryActionDate"))
+            passed = h.get("MatterHistoryPassedFlagName")
+            out.append((i, action_date, action, passed))
+        return out
+    except Exception:  # noqa: BLE001 - history is best-effort enrichment
+        logger.warning("no history for Matter %s", matter_id, exc_info=True)
+        return []
+
+
+def backfill_history(
+    client: str | None = None,
+    jurisdiction: str | None = None,
+    *,
+    http: httpx.Client | None = None,
+    only_missing: bool = False,
+) -> int:
+    """Fetch + store action history for already-ingested docs in a jurisdiction.
+
+    Mirrors ``backfill_sponsors``: a standalone enrichment pass, ``only_missing`` to
+    enrich just docs with no history yet, periodic commits. Returns docs processed.
+    """
+
+    client = client or settings.legistar_client
+    jurisdiction = jurisdiction or client
+
+    from .db import get_conn, upsert_history
+
+    own_client = http is None
+    http = http or httpx.Client(headers={"User-Agent": USER_AGENT})
+    processed = 0
+    missing_clause = (
+        " AND NOT EXISTS (SELECT 1 FROM civic_history h WHERE h.document_id = d.id)"
+        if only_missing
+        else ""
+    )
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT d.id, d.source_ref FROM civic_documents d "
+                    f"WHERE d.jurisdiction = %s{missing_clause} ORDER BY d.id;",
+                    (jurisdiction,),
+                )
+                rows = cur.fetchall()
+            for doc_id, source_ref in rows:
+                entries = fetch_history(source_ref, client=client, http=http)
+                upsert_history(conn, doc_id, entries)
+                processed += 1
+                if processed % 100 == 0:
+                    conn.commit()
+                    logger.info("history backfill: %d/%d", processed, len(rows))
+                time.sleep(ATTACHMENT_DELAY_SECONDS)
+            conn.commit()
+    finally:
+        if own_client:
+            http.close()
+    return processed
+
+
+# ---------------------------------------------------------------------------
 # Normalize
 # ---------------------------------------------------------------------------
 

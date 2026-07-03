@@ -12,10 +12,12 @@ from datetime import date
 from fastapi import APIRouter
 
 from app.civic.schemas import (
+    BillTimelineResponse,
     BriefResponse,
     OverviewResponse,
     SponsorsResponse,
     TopicActivityResponse,
+    VelocityResponse,
 )
 from fastapi import Query
 
@@ -81,3 +83,26 @@ def sponsors(
     from app.civic.insights import top_sponsors
 
     return SponsorsResponse(**top_sponsors(topic, jurisdiction, since, limit))
+
+
+@router.get("/timeline", response_model=BillTimelineResponse)
+def timeline(
+    file_no: str = Query(..., min_length=1, max_length=64),
+    jurisdiction: str | None = None,
+) -> BillTimelineResponse:
+    """The legislative action history (timeline) for one bill by ``?file_no=``."""
+
+    from app.civic.insights import bill_timeline
+
+    return BillTimelineResponse(**bill_timeline(file_no, jurisdiction))
+
+
+@router.get("/velocity", response_model=VelocityResponse)
+def velocity(
+    jurisdiction: str | None = None, since: date | None = None
+) -> VelocityResponse:
+    """How fast enacted legislation moves: count + avg days from intro to final action."""
+
+    from app.civic.insights import legislative_velocity
+
+    return VelocityResponse(**legislative_velocity(jurisdiction, since))
