@@ -46,10 +46,15 @@ app.add_middleware(
 # share none of the SQLite tables or connections. The civic Postgres schema is
 # initialised lazily on first use by app.civic.db.init() (not in the SQLite
 # lifespan above), so importing/mounting these routers requires no live Postgres.
-from app.civic.routers import ingest as civic_ingest, ask as civic_ask
+from app.civic.routers import (
+    ingest as civic_ingest,
+    ask as civic_ask,
+    insights as civic_insights,
+)
 
-app.include_router(civic_ingest.router)   # POST /civic/ingest
-app.include_router(civic_ask.router)      # POST /civic/ask
+app.include_router(civic_ingest.router)     # POST /civic/ingest
+app.include_router(civic_ask.router)        # POST /civic/ask
+app.include_router(civic_insights.router)   # GET  /civic/insights/{overview,topics}
 # --------------------------------------------------------------------------
 
 @app.get("/health")

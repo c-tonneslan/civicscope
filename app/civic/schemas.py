@@ -116,3 +116,35 @@ class IngestResponse(BaseModel):
     """Body of the ``POST /civic/ingest`` response."""
 
     ingested: int
+
+
+class CountItem(BaseModel):
+    """One labelled tally in an overview breakdown (type/status/month)."""
+
+    label: str
+    count: int
+
+
+class OverviewResponse(BaseModel):
+    """Body of ``GET /civic/insights/overview`` — a corpus snapshot."""
+
+    total_documents: int
+    by_type: list[CountItem]
+    by_status: list[CountItem]
+    by_month: list[CountItem]          # label is 'YYYY-MM'
+    earliest_intro_date: date | None
+    latest_intro_date: date | None
+
+
+class TopicActivityItem(BaseModel):
+    """Bill count for one curated policy topic."""
+
+    topic: str
+    bills: int
+
+
+class TopicActivityResponse(BaseModel):
+    """Body of ``GET /civic/insights/topics`` — tracked-topic activity."""
+
+    since: date | None
+    topics: list[TopicActivityItem]
