@@ -94,6 +94,49 @@ REQUEST_DELAY_SECONDS = 0.5
 # generous without hanging the ingest forever on a stalled connection.
 REQUEST_TIMEOUT_SECONDS = 60.0
 
+# Resilience for long crawls. A multi-thousand-page backfill will occasionally hit
+# a transient TRANSPORT error (connection reset, read timeout) mid-stream; without
+# a retry, one blip aborts the whole ingest. We retry transient transport errors a
+# few times with linear backoff. HTTP *status* errors still fail loud — a 4xx/5xx
+# is a real problem (throttling, outage), not a blip, and a partial silent ingest
+# would be worse than a visible, retryable error.
+FETCH_RETRIES = 4
+RETRY_BACKOFF_SECONDS = 2.0
+_TRANSIENT_EXC_NAMES = frozenset(
+    {
+        "ConnectError", "ConnectTimeout", "ReadError", "ReadTimeout",
+        "WriteError", "PoolTimeout", "RemoteProtocolError",
+    }
+)
+
+
+def _is_transient(exc: Exception) -> bool:
+    """True for transport errors worth retrying (not HTTP status errors)."""
+
+    return type(exc).__name__ in _TRANSIENT_EXC_NAMES
+
+
+def _get_with_retry(
+    http: httpx.Client, url: str, params: dict | None = None
+) -> httpx.Response:
+    """GET with retry on transient transport errors (linear backoff)."""
+
+    last: Exception | None = None
+    for attempt in range(FETCH_RETRIES):
+        try:
+            return http.get(url, params=params)
+        except Exception as exc:  # noqa: BLE001 - re-raised below if not transient
+            if not _is_transient(exc):
+                raise
+            last = exc
+            logger.warning(
+                "transient fetch error %s (attempt %d/%d); retrying",
+                type(exc).__name__, attempt + 1, FETCH_RETRIES,
+            )
+            time.sleep(RETRY_BACKOFF_SECONDS * (attempt + 1))
+    assert last is not None
+    raise last
+
 # Safety cap on how many pages we will ever walk in a single run. Philadelphia's
 # full Matters history is tens of thousands of rows; for this thin slice we bound
 # the crawl so a single /civic/ingest call is fast and predictable rather than a
@@ -160,7 +203,7 @@ def fetch_matters(
                 "$orderby": "MatterIntroDate desc,MatterId desc",
             }
 
-            resp = http.get(url, params=params)
+            resp = _get_with_retry(http, url, params)
             # Fail loud on a bad status -- a partial/garbage ingest is worse than
             # a visible error the operator can retry.
             resp.raise_for_status()
@@ -589,18 +632,25 @@ def hydrate_bodies(
             http.close()
 
 
-def run_ingest(client: str | None = None, *, full_text: bool = True) -> int:
+def run_ingest(
+    client: str | None = None,
+    *,
+    full_text: bool = True,
+    max_pages: int = MAX_PAGES,
+) -> int:
     """Full pipeline: fetch -> normalize -> [full text] -> chunk -> embed -> upsert.
 
     Returns the number of documents ingested. This is the single entry point the
     ``POST /civic/ingest`` router calls. ``full_text`` (default True) fetches each
     Matter's PDF attachment for the real bill body; pass False for a fast,
-    network-light title-only ingest.
+    network-light title-only ingest. ``max_pages`` bounds how deep into a
+    jurisdiction's history to crawl (each page is ``PAGE_SIZE`` Matters), so a
+    backfill can reach far past the default recent-window cap.
     """
 
     client = client or settings.legistar_client
 
-    raw_matters = fetch_matters(client)
+    raw_matters = fetch_matters(client, max_pages=max_pages)
 
     docs: list[CivicDocument] = []
     for m in raw_matters:

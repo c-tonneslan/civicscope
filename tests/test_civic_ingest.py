@@ -674,7 +674,7 @@ class TestRunIngest:
             captured["docs"] = docs
             return len(docs)
 
-        monkeypatch.setattr(ingest, "fetch_matters", lambda client: sample_matters)
+        monkeypatch.setattr(ingest, "fetch_matters", lambda client, **k: sample_matters)
         monkeypatch.setattr(ingest, "upsert_documents", fake_upsert)
         # Keep the orchestration test network-free: full-text hydration is covered
         # separately (TestFetchMatterText / TestHydrateBodies).
@@ -691,13 +691,13 @@ class TestRunIngest:
 
     def test_all_idless_yields_zero(self, monkeypatch, make_matter):
         matters = [make_matter(MatterId=None), make_matter(MatterId=None)]
-        monkeypatch.setattr(ingest, "fetch_matters", lambda client: matters)
+        monkeypatch.setattr(ingest, "fetch_matters", lambda client, **k: matters)
         monkeypatch.setattr(ingest, "upsert_documents", lambda docs: len(docs))
         assert ingest.run_ingest("phila") == 0
 
     def test_malformed_record_skipped_not_fatal(self, monkeypatch, make_matter):
         good = make_matter(MatterId=1, MatterTitle="ok")
-        monkeypatch.setattr(ingest, "fetch_matters", lambda client: [good])
+        monkeypatch.setattr(ingest, "fetch_matters", lambda client, **k: [good])
 
         real_normalize = ingest.normalize_matter
         calls = {"n": 0}
@@ -710,7 +710,7 @@ class TestRunIngest:
 
         # Two matters: first raises during normalize (skipped), second succeeds.
         monkeypatch.setattr(ingest, "fetch_matters",
-                            lambda client: [make_matter(MatterId=1),
+                            lambda client, **k: [make_matter(MatterId=1),
                                             make_matter(MatterId=2, MatterTitle="ok")])
         monkeypatch.setattr(ingest, "normalize_matter", flaky_normalize)
         monkeypatch.setattr(ingest, "upsert_documents", lambda docs: len(docs))
@@ -719,7 +719,7 @@ class TestRunIngest:
 
     def test_full_text_true_hydrates_bodies(self, monkeypatch, make_matter):
         monkeypatch.setattr(ingest, "fetch_matters",
-                            lambda client: [make_matter(MatterId=1, MatterTitle="ok")])
+                            lambda client, **k: [make_matter(MatterId=1, MatterTitle="ok")])
         monkeypatch.setattr(ingest, "upsert_documents", lambda docs: len(docs))
         called = {"n": 0}
         monkeypatch.setattr(ingest, "hydrate_bodies",
@@ -729,7 +729,7 @@ class TestRunIngest:
 
     def test_full_text_false_skips_hydration(self, monkeypatch, make_matter):
         monkeypatch.setattr(ingest, "fetch_matters",
-                            lambda client: [make_matter(MatterId=1, MatterTitle="ok")])
+                            lambda client, **k: [make_matter(MatterId=1, MatterTitle="ok")])
         monkeypatch.setattr(ingest, "upsert_documents", lambda docs: len(docs))
         def _boom(docs, **k):
             raise AssertionError("hydrate_bodies must not run when full_text=False")
