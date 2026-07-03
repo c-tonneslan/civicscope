@@ -24,9 +24,18 @@ export default function InsightsPanel() {
 
   useEffect(() => {
     let live = true;
+    // Treat any non-OK response as a failure (a 404 from an un-restarted backend,
+    // or a 500) — those still RESOLVE the fetch, so without the res.ok guard we'd
+    // parse an error body and render undefined fields. Throwing routes them to
+    // .catch, which hides the panel instead of crashing the page.
+    const getJson = async (path: string) => {
+      const res = await fetch(`${API_URL}${path}`);
+      if (!res.ok) throw new Error(`${path} -> ${res.status}`);
+      return res.json();
+    };
     Promise.all([
-      fetch(`${API_URL}/civic/insights/overview`).then((r) => r.json()),
-      fetch(`${API_URL}/civic/insights/topics`).then((r) => r.json()),
+      getJson("/civic/insights/overview"),
+      getJson("/civic/insights/topics"),
     ])
       .then(([o, t]: [Overview, Topics]) => {
         if (!live) return;
@@ -49,7 +58,7 @@ export default function InsightsPanel() {
     <section className="insights" style={{ marginTop: 32 }}>
       <p className="eyebrow">civicscope · Insights</p>
       <div className="panel">
-        {overview && (
+        {overview && typeof overview.total_documents === "number" && (
           <div className="stats">
             <div className="stat">
               <span className="stat-num">{overview.total_documents.toLocaleString()}</span>
