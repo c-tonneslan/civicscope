@@ -267,8 +267,11 @@ def _is_connection_error(exc: Exception) -> bool:
 # ===========================================================================
 
 
-def answer_question(question: str) -> AskResponse:
+def answer_question(question: str, jurisdiction: str | None = None) -> AskResponse:
     """End-to-end: retrieve -> synthesize -> verify citations -> AskResponse.
+
+    ``jurisdiction`` (a Legistar client slug) scopes retrieval to one city; ``None``
+    searches every ingested city.
 
     Degrades gracefully:
       * anthropic provider with no key -> refusal explaining how to set it.
@@ -289,7 +292,7 @@ def answer_question(question: str) -> AskResponse:
     # graceful refusal with a clear hint instead of letting the error propagate as
     # an unhandled 500 — /ask must never crash for the normal failure modes.
     try:
-        chunks = retrieve(question, top_k=TOP_K)
+        chunks = retrieve(question, top_k=TOP_K, jurisdiction=jurisdiction)
     except Exception as exc:  # noqa: BLE001 - we intentionally never crash /ask
         return AskResponse(
             answer=f"{DB_DOWN_TEXT} (retrieval error: {type(exc).__name__})",

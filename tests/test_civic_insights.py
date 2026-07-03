@@ -159,7 +159,7 @@ class TestTopicActivity:
 
 class TestInsightRoutes:
     def test_overview_route_shape(self, civic_client, monkeypatch):
-        monkeypatch.setattr("app.civic.insights.corpus_overview", lambda: {
+        monkeypatch.setattr("app.civic.insights.corpus_overview", lambda jurisdiction=None: {
             "total_documents": 3,
             "by_type": [{"label": "Bill", "count": 3}],
             "by_status": [{"label": "ADOPTED", "count": 3}],
@@ -174,7 +174,7 @@ class TestInsightRoutes:
         assert body["by_type"] == [{"label": "Bill", "count": 3}]
 
     def test_topics_route_shape(self, civic_client, monkeypatch):
-        monkeypatch.setattr("app.civic.insights.topic_activity", lambda since=None: {
+        monkeypatch.setattr("app.civic.insights.topic_activity", lambda since=None, jurisdiction=None: {
             "since": since,
             "topics": [{"topic": "Housing", "bills": 12}],
         })
@@ -184,9 +184,12 @@ class TestInsightRoutes:
 
     def test_topics_route_passes_since(self, civic_client, monkeypatch):
         seen = {}
-        monkeypatch.setattr("app.civic.insights.topic_activity", lambda since=None: (
-            seen.update(since=since) or {"since": since, "topics": []}
-        ))
+        monkeypatch.setattr(
+            "app.civic.insights.topic_activity",
+            lambda since=None, jurisdiction=None: (
+                seen.update(since=since) or {"since": since, "topics": []}
+            ),
+        )
         resp = civic_client.get("/civic/insights/topics?since=2026-06-01")
         assert resp.status_code == 200
         assert seen["since"] == date(2026, 6, 1)
@@ -194,3 +197,57 @@ class TestInsightRoutes:
     def test_topics_route_rejects_bad_date(self, civic_client):
         resp = civic_client.get("/civic/insights/topics?since=not-a-date")
         assert resp.status_code == 422
+
+
+# ===========================================================================
+# Multi-jurisdiction scoping + /civic/jurisdictions
+# ===========================================================================
+
+
+class TestJurisdictionScoping:
+    def test_overview_scoped_binds_jurisdiction(self, monkeypatch):
+        cur = MagicMock()
+        cur.fetchone.side_effect = [(3,), (None, None)]
+        cur.fetchall.side_effect = [[], [], []]
+        _patch_conn(monkeypatch, cur)
+        insights.corpus_overview(jurisdiction="chicago")
+        # The count query (first execute) must carry the jurisdiction as a param.
+        first = cur.execute.call_args_list[0].args
+        assert "WHERE jurisdiction = %s" in first[0]
+        assert first[1] == ("chicago",)
+
+    def test_overview_unscoped_binds_nothing(self, monkeypatch):
+        cur = MagicMock()
+        cur.fetchone.side_effect = [(3,), (None, None)]
+        cur.fetchall.side_effect = [[], [], []]
+        _patch_conn(monkeypatch, cur)
+        insights.corpus_overview()
+        first = cur.execute.call_args_list[0].args
+        assert first[1] == ()
+
+    def test_topics_scoped_appends_jurisdiction_param(self, monkeypatch):
+        cur = MagicMock()
+        cur.fetchone.side_effect = [(0,)] * len(insights.TRACKED_TOPICS)
+        _patch_conn(monkeypatch, cur)
+        insights.topic_activity(jurisdiction="chicago")
+        params = cur.execute.call_args_list[0].args[1]
+        assert params[-1] == "chicago" and len(params) == 4
+
+    def test_list_jurisdictions_shape(self, monkeypatch):
+        cur = MagicMock()
+        cur.fetchall.return_value = [("phila", 1996), ("chicago", 400)]
+        _patch_conn(monkeypatch, cur)
+        assert insights.list_jurisdictions() == {
+            "jurisdictions": [
+                {"slug": "phila", "documents": 1996},
+                {"slug": "chicago", "documents": 400},
+            ]
+        }
+
+    def test_jurisdictions_route(self, civic_client, monkeypatch):
+        monkeypatch.setattr("app.civic.insights.list_jurisdictions", lambda: {
+            "jurisdictions": [{"slug": "phila", "documents": 5}]
+        })
+        resp = civic_client.get("/civic/jurisdictions")
+        assert resp.status_code == 200
+        assert resp.json()["jurisdictions"][0] == {"slug": "phila", "documents": 5}

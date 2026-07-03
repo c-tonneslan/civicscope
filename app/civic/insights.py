@@ -50,34 +50,43 @@ def _rows_as_count_items(rows: list[tuple]) -> list[dict]:
             for label, count in rows]
 
 
-def corpus_overview() -> dict:
-    """Quantitative snapshot of the whole corpus (see module docstring)."""
+def corpus_overview(jurisdiction: str | None = None) -> dict:
+    """Quantitative snapshot of the corpus, optionally scoped to one jurisdiction.
+
+    The ``where``/``and_`` fragments are fixed literals (never user text) that add
+    the jurisdiction predicate only when one is requested; the value itself is
+    always a bound parameter.
+    """
+
+    where = "" if jurisdiction is None else "WHERE jurisdiction = %s"
+    and_ = "" if jurisdiction is None else "AND jurisdiction = %s"
+    p: tuple = () if jurisdiction is None else (jurisdiction,)
 
     with get_conn() as conn, conn.cursor() as cur:
-        cur.execute("SELECT count(*) FROM civic_documents;")
+        cur.execute(f"SELECT count(*) FROM civic_documents {where};", p)
         total = cur.fetchone()[0]
 
         cur.execute(
-            "SELECT doc_type, count(*) FROM civic_documents "
-            "GROUP BY doc_type ORDER BY count(*) DESC;"
+            f"SELECT doc_type, count(*) FROM civic_documents {where} "
+            "GROUP BY doc_type ORDER BY count(*) DESC;", p
         )
         by_type = _rows_as_count_items(cur.fetchall())
 
         cur.execute(
-            "SELECT status, count(*) FROM civic_documents "
-            "GROUP BY status ORDER BY count(*) DESC;"
+            f"SELECT status, count(*) FROM civic_documents {where} "
+            "GROUP BY status ORDER BY count(*) DESC;", p
         )
         by_status = _rows_as_count_items(cur.fetchall())
 
         # Recent monthly introduction volume (newest first, last 12 months present).
         cur.execute(
             "SELECT to_char(date_trunc('month', intro_date), 'YYYY-MM') AS m, count(*) "
-            "FROM civic_documents WHERE intro_date IS NOT NULL "
-            "GROUP BY m ORDER BY m DESC LIMIT 12;"
+            f"FROM civic_documents WHERE intro_date IS NOT NULL {and_} "
+            "GROUP BY m ORDER BY m DESC LIMIT 12;", p
         )
         by_month = _rows_as_count_items(cur.fetchall())
 
-        cur.execute("SELECT min(intro_date), max(intro_date) FROM civic_documents;")
+        cur.execute(f"SELECT min(intro_date), max(intro_date) FROM civic_documents {where};", p)
         earliest, latest = cur.fetchone()
 
     return {
@@ -90,28 +99,46 @@ def corpus_overview() -> dict:
     }
 
 
-def topic_activity(since: date | None = None) -> dict:
-    """Bill counts per curated topic, optionally restricted to ``intro_date >= since``.
+def topic_activity(since: date | None = None, jurisdiction: str | None = None) -> dict:
+    """Bill counts per curated topic, optionally scoped by ``since`` and jurisdiction.
 
     One count query per topic (each hits the GIN-indexed ``tsv``), then sorted by
     volume. ``count(DISTINCT d.id)`` so a bill with several matching chunks is
     counted once. Returned sorted busiest-first.
     """
 
+    extra = "" if jurisdiction is None else "AND d.jurisdiction = %s"
+
     items: list[dict] = []
     with get_conn() as conn, conn.cursor() as cur:
         for label, query in TRACKED_TOPICS:
+            params = (query, since, since)
+            if jurisdiction is not None:
+                params = (query, since, since, jurisdiction)
             cur.execute(
-                """
+                f"""
                 SELECT count(DISTINCT d.id)
                 FROM civic_documents d
                 JOIN civic_chunks c ON c.document_id = d.id
                 WHERE c.tsv @@ to_tsquery('english', %s)
-                  AND (%s::date IS NULL OR d.intro_date >= %s);
+                  AND (%s::date IS NULL OR d.intro_date >= %s)
+                  {extra};
                 """,
-                (query, since, since),
+                params,
             )
             items.append({"topic": label, "bills": cur.fetchone()[0]})
 
     items.sort(key=lambda it: it["bills"], reverse=True)
     return {"since": since, "topics": items}
+
+
+def list_jurisdictions() -> dict:
+    """List every ingested jurisdiction (Legistar client slug) with its bill count."""
+
+    with get_conn() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT jurisdiction, count(*) FROM civic_documents "
+            "GROUP BY jurisdiction ORDER BY count(*) DESC;"
+        )
+        rows = cur.fetchall()
+    return {"jurisdictions": [{"slug": slug, "documents": n} for slug, n in rows]}

@@ -173,7 +173,10 @@ class TestRRFProperties:
     def test_equal_scores_are_id_sorted(self, lists):
         fused = rrf(lists)
         for (id_a, s_a), (id_b, s_b) in zip(fused, fused[1:]):
-            if math.isclose(s_a, s_b):
+            # RRF's sort key is (-score, id), so id-ascending is guaranteed only on
+            # EXACT score ties. Two merely-close-but-distinct scores are ordered by
+            # score, not id, so math.isclose would over-assert here.
+            if s_a == s_b:
                 assert id_a < id_b
 
     @given(_ranked_lists)
@@ -223,8 +226,10 @@ class TestRetrieveOrchestration:
             yield _FakeConn()
 
         monkeypatch.setattr(retrieval, "get_conn", fake_get_conn)
-        monkeypatch.setattr(retrieval, "_dense_candidates", lambda c, v, k: dense)
-        monkeypatch.setattr(retrieval, "_lexical_candidates", lambda c, q, k: lexical)
+        monkeypatch.setattr(retrieval, "_dense_candidates",
+                            lambda c, v, k, jz=None: dense)
+        monkeypatch.setattr(retrieval, "_lexical_candidates",
+                            lambda c, q, k, jz=None: lexical)
         monkeypatch.setattr(retrieval, "_fetch_chunks", lambda c, ids: hydrate)
 
     def _chunk(self, cid, file_no="260633"):
@@ -282,8 +287,8 @@ class TestRetrieveOrchestration:
             yield _FakeConn()
 
         monkeypatch.setattr(retrieval, "get_conn", fake_get_conn)
-        monkeypatch.setattr(retrieval, "_dense_candidates", lambda c, v, k: [1])
-        monkeypatch.setattr(retrieval, "_lexical_candidates", lambda c, q, k: [1])
+        monkeypatch.setattr(retrieval, "_dense_candidates", lambda c, v, k, jz=None: [1])
+        monkeypatch.setattr(retrieval, "_lexical_candidates", lambda c, q, k, jz=None: [1])
         monkeypatch.setattr(retrieval, "_fetch_chunks",
                             lambda c, ids: {1: self._chunk(1)})
         retrieval.retrieve("only once")
@@ -500,6 +505,63 @@ class TestContentTerms:
 
     def test_unicode_word_is_preserved_whole(self):
         assert retrieval._content_terms("café") == "café"
+
+
+class TestJurisdictionFilter:
+    def test_dense_default_query_has_no_jurisdiction_join(self, monkeypatch):
+        # Whole-corpus search keeps the original single-table query (no join).
+        monkeypatch.setattr(retrieval, "register_vector", lambda conn: None)
+        conn = _mock_conn(fetchall_rows=[(1,)])
+        retrieval._dense_candidates(conn, [0.0] * 384, 20)
+        sql, params = _sql_and_params(conn)
+        assert "civic_documents" not in sql
+        assert params == ([0.0] * 384, 20)
+
+    def test_dense_scoped_query_joins_and_binds_jurisdiction_first(self, monkeypatch):
+        monkeypatch.setattr(retrieval, "register_vector", lambda conn: None)
+        conn = _mock_conn(fetchall_rows=[(1,)])
+        retrieval._dense_candidates(conn, [0.0] * 384, 20, jurisdiction="chicago")
+        sql, params = _sql_and_params(conn)
+        assert "JOIN civic_documents d" in sql
+        assert "d.jurisdiction = %s" in sql
+        assert params == ("chicago", [0.0] * 384, 20)
+
+    def test_lexical_default_query_has_no_jurisdiction_join(self):
+        conn = _mock_conn(fetchall_rows=[(1,)])
+        retrieval._lexical_candidates(conn, "zoning", 20)
+        sql, _ = _sql_and_params(conn)
+        assert "civic_documents" not in sql
+
+    def test_lexical_scoped_query_joins_and_binds_jurisdiction(self):
+        conn = _mock_conn(fetchall_rows=[(1,)])
+        retrieval._lexical_candidates(conn, "zoning", 20, jurisdiction="chicago")
+        sql, params = _sql_and_params(conn)
+        assert "JOIN civic_documents d" in sql
+        assert "d.jurisdiction = %s" in sql
+        # (content_terms, jurisdiction, k)
+        assert params == ("zoning", "chicago", 20)
+
+    def test_retrieve_threads_jurisdiction_to_both_retrievers(self, monkeypatch):
+        seen = {}
+        monkeypatch.setattr(retrieval, "embed_query", lambda q: [0.0] * 384)
+
+        from contextlib import contextmanager
+
+        @contextmanager
+        def fake_get_conn():
+            yield _FakeConn()
+
+        monkeypatch.setattr(retrieval, "get_conn", fake_get_conn)
+        monkeypatch.setattr(retrieval, "_dense_candidates",
+                            lambda c, v, k, jz=None: seen.setdefault("dense", jz) or [1])
+        monkeypatch.setattr(retrieval, "_lexical_candidates",
+                            lambda c, q, k, jz=None: seen.setdefault("lex", jz) or [1])
+        monkeypatch.setattr(retrieval, "_fetch_chunks",
+                            lambda c, ids: {1: retrieval.RetrievedChunk(
+                                chunk_id=1, source_ref="1", file_no="1",
+                                title="t", chunk_index=0, text="x")})
+        retrieval.retrieve("q", jurisdiction="chicago")
+        assert seen == {"dense": "chicago", "lex": "chicago"}
 
 
 class TestFetchChunksSQL:

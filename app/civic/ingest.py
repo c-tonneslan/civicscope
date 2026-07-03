@@ -421,6 +421,7 @@ def normalize_matter(matter: dict, *, client: str | None = None) -> CivicDocumen
 
     return CivicDocument(
         source_ref=str(matter.get("MatterId")),
+        jurisdiction=client,
         doc_type=matter.get("MatterTypeName"),
         file_no=matter.get("MatterFile"),
         title=title,

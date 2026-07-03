@@ -133,7 +133,9 @@ def reciprocal_rank_fusion(
 # ===========================================================================
 
 
-def _dense_candidates(conn, query_vector: list[float], k: int) -> list[int]:
+def _dense_candidates(
+    conn, query_vector: list[float], k: int, jurisdiction: str | None = None
+) -> list[int]:
     """Top-k chunk ids by cosine distance (pgvector ``<=>`` operator).
 
     ``<=>`` is pgvector's cosine *distance* (smaller = more similar), so ascending
@@ -141,20 +143,37 @@ def _dense_candidates(conn, query_vector: list[float], k: int) -> list[int]:
     has no ``vector <=> double precision[]`` operator, so we cast the parameter with
     ``%s::vector`` to coerce the array literal to the vector type before the
     distance operator sees it.
+
+    When ``jurisdiction`` is given, join the parent document (chunks carry no
+    jurisdiction of their own) and restrict to that city; otherwise search the
+    whole corpus with the original single-table query.
     """
 
     register_vector(conn)
     with conn.cursor() as cur:
-        cur.execute(
-            """
-            SELECT id
-            FROM civic_chunks
-            WHERE embedding IS NOT NULL
-            ORDER BY embedding <=> %s::vector
-            LIMIT %s;
-            """,
-            (query_vector, k),
-        )
+        if jurisdiction is None:
+            cur.execute(
+                """
+                SELECT id
+                FROM civic_chunks
+                WHERE embedding IS NOT NULL
+                ORDER BY embedding <=> %s::vector
+                LIMIT %s;
+                """,
+                (query_vector, k),
+            )
+        else:
+            cur.execute(
+                """
+                SELECT c.id
+                FROM civic_chunks c
+                JOIN civic_documents d ON d.id = c.document_id
+                WHERE c.embedding IS NOT NULL AND d.jurisdiction = %s
+                ORDER BY c.embedding <=> %s::vector
+                LIMIT %s;
+                """,
+                (jurisdiction, query_vector, k),
+            )
         return [row[0] for row in cur.fetchall()]
 
 
@@ -199,7 +218,9 @@ def _content_terms(query: str) -> str:
     return " ".join(terms) if terms else query
 
 
-def _lexical_candidates(conn, query: str, k: int) -> list[int]:
+def _lexical_candidates(
+    conn, query: str, k: int, jurisdiction: str | None = None
+) -> list[int]:
     """Top-k chunk ids by full-text relevance (``ts_rank`` over the tsv column).
 
     ``plainto_tsquery`` turns the query into a tsquery (handles English stop-words
@@ -209,20 +230,36 @@ def _lexical_candidates(conn, query: str, k: int) -> list[int]:
 
     We feed ``_content_terms(query)`` rather than the raw question so civic-generic
     words don't drown the discriminative topic words in the ranking (see
-    ``_DOMAIN_STOPWORDS``).
+    ``_DOMAIN_STOPWORDS``). When ``jurisdiction`` is given, join the parent document
+    and restrict to that city.
     """
 
+    content = _content_terms(query)
     with conn.cursor() as cur:
-        cur.execute(
-            """
-            SELECT id
-            FROM civic_chunks, plainto_tsquery('english', %s) AS q
-            WHERE tsv @@ q
-            ORDER BY ts_rank(tsv, q) DESC
-            LIMIT %s;
-            """,
-            (_content_terms(query), k),
-        )
+        if jurisdiction is None:
+            cur.execute(
+                """
+                SELECT id
+                FROM civic_chunks, plainto_tsquery('english', %s) AS q
+                WHERE tsv @@ q
+                ORDER BY ts_rank(tsv, q) DESC
+                LIMIT %s;
+                """,
+                (content, k),
+            )
+        else:
+            cur.execute(
+                """
+                SELECT c.id
+                FROM civic_chunks c
+                JOIN civic_documents d ON d.id = c.document_id,
+                     plainto_tsquery('english', %s) AS q
+                WHERE c.tsv @@ q AND d.jurisdiction = %s
+                ORDER BY ts_rank(c.tsv, q) DESC
+                LIMIT %s;
+                """,
+                (content, jurisdiction, k),
+            )
         return [row[0] for row in cur.fetchall()]
 
 
@@ -267,7 +304,9 @@ def _fetch_chunks(conn, chunk_ids: list[int]) -> dict[int, RetrievedChunk]:
 # ===========================================================================
 
 
-def retrieve(query: str, top_k: int = DEFAULT_TOP_K) -> list[RetrievedChunk]:
+def retrieve(
+    query: str, top_k: int = DEFAULT_TOP_K, jurisdiction: str | None = None
+) -> list[RetrievedChunk]:
     """Hybrid-retrieve the top_k most relevant civic chunks for a query.
 
     Flow:
@@ -277,13 +316,16 @@ def retrieve(query: str, top_k: int = DEFAULT_TOP_K) -> list[RetrievedChunk]:
         4. RRF-fuse the two rankings.
         5. Hydrate the top_k fused ids into RetrievedChunk records (in fused order),
            each carrying its parent document's file_no + title for citation.
+
+    ``jurisdiction`` (a Legistar client slug) scopes both retrievers to one city;
+    ``None`` searches the whole corpus.
     """
 
     query_vector = embed_query(query)
 
     with get_conn() as conn:
-        dense_ids = _dense_candidates(conn, query_vector, CANDIDATE_K)
-        lexical_ids = _lexical_candidates(conn, query, CANDIDATE_K)
+        dense_ids = _dense_candidates(conn, query_vector, CANDIDATE_K, jurisdiction)
+        lexical_ids = _lexical_candidates(conn, query, CANDIDATE_K, jurisdiction)
 
         # Down-weight the noisier dense arm so the sharpened lexical arm leads (see
         # LEXICAL_WEIGHT / DENSE_WEIGHT). Order here MUST match the weights order.

@@ -44,9 +44,10 @@ class TestAskEndpoint:
         # exactly 2000 chars is allowed.
         monkeypatch.setattr(
             "app.civic.answer.answer_question",
-            lambda q: AskResponse(answer="ok [Bill 1]",
-                                  citations=[Citation(file_no="1", title="t")],
-                                  refused=False),
+            lambda q, jurisdiction=None: AskResponse(
+                answer="ok [Bill 1]",
+                citations=[Citation(file_no="1", title="t")],
+                refused=False),
         )
         resp = civic_client.post("/civic/ask", json={"question": "q" * 2000})
         assert resp.status_code == 200
@@ -54,7 +55,7 @@ class TestAskEndpoint:
     def test_success_shape(self, civic_client, monkeypatch):
         monkeypatch.setattr(
             "app.civic.answer.answer_question",
-            lambda q: AskResponse(
+            lambda q, jurisdiction=None: AskResponse(
                 answer="In committee [Bill 260633].",
                 citations=[Citation(file_no="260633", title="Ord X")],
                 refused=False),
@@ -70,8 +71,8 @@ class TestAskEndpoint:
         # A refusal is a NORMAL 200 response, not an HTTP error.
         monkeypatch.setattr(
             "app.civic.answer.answer_question",
-            lambda q: AskResponse(answer="I can't ground this.", citations=[],
-                                  refused=True),
+            lambda q, jurisdiction=None: AskResponse(
+                answer="I can't ground this.", citations=[], refused=True),
         )
         resp = civic_client.post("/civic/ask", json={"question": "obscure"})
         assert resp.status_code == 200
@@ -81,8 +82,9 @@ class TestAskEndpoint:
     def test_passes_question_through(self, civic_client, monkeypatch):
         seen = {}
 
-        def fake_answer(q):
+        def fake_answer(q, jurisdiction=None):
             seen["q"] = q
+            seen["jurisdiction"] = jurisdiction
             return AskResponse(
                 answer="[Bill 1] ok", citations=[Citation(file_no="1", title="t")],
                 refused=False)
@@ -90,6 +92,20 @@ class TestAskEndpoint:
         monkeypatch.setattr("app.civic.answer.answer_question", fake_answer)
         civic_client.post("/civic/ask", json={"question": "specific text"})
         assert seen["q"] == "specific text"
+
+    def test_passes_jurisdiction_through(self, civic_client, monkeypatch):
+        seen = {}
+
+        def fake_answer(q, jurisdiction=None):
+            seen["jurisdiction"] = jurisdiction
+            return AskResponse(answer="[Bill 1] ok",
+                               citations=[Citation(file_no="1", title="t")],
+                               refused=False)
+
+        monkeypatch.setattr("app.civic.answer.answer_question", fake_answer)
+        civic_client.post("/civic/ask",
+                          json={"question": "q", "jurisdiction": "chicago"})
+        assert seen["jurisdiction"] == "chicago"
 
 
 # ===========================================================================

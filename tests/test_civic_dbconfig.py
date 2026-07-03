@@ -267,9 +267,11 @@ def test_ddl_first_statement_enables_vector_extension():
     [
         "create table if not exists civic_documents",
         "create table if not exists civic_chunks",
-        "source_ref  text not null unique",
-        "raw         jsonb not null",
-        "loaded_at   timestamptz not null default now()",
+        "jurisdiction text not null default 'phila'",
+        "source_ref text not null",
+        "unique (jurisdiction, source_ref)",
+        "raw jsonb not null",
+        "loaded_at timestamptz not null default now()",
         "document_id bigint not null references civic_documents(id) on delete cascade",
         "unique (document_id, chunk_index)",
         "tsvector generated always as",
@@ -280,10 +282,14 @@ def test_ddl_first_statement_enables_vector_extension():
         "using ivfflat",
         "vector_cosine_ops",
         "with (lists = 100)",
+        "create index if not exists civic_documents_jurisdiction_idx",
     ],
 )
 def test_ddl_declares_expected_object(needle):
-    blob = " ".join(db._DDL_STATEMENTS).lower()
+    import re
+
+    # Collapse the column-alignment whitespace so needles are insensitive to it.
+    blob = re.sub(r"\s+", " ", " ".join(db._DDL_STATEMENTS)).lower()
     assert needle in blob
 
 
@@ -305,13 +311,19 @@ def test_no_ddl_statement_hardcodes_a_different_vector_width():
 def test_all_ddl_statements_are_idempotent():
     for stmt in db._DDL_STATEMENTS:
         low = stmt.strip().lower()
-        assert low.startswith("create")
-        assert "if not exists" in low
+        # Every statement is safe to re-run: CREATE/ALTER ... IF (NOT) EXISTS, or a
+        # DO block that guards its ALTER with its own existence check.
+        assert (
+            "if not exists" in low
+            or "if exists" in low
+            or low.startswith("do $$")
+        )
 
 
 def test_ddl_has_expected_statement_count():
-    # extension + 2 tables + 2 indexes.
-    assert len(db._DDL_STATEMENTS) == 5
+    # extension + documents table + 3 migration stmts (add col, drop old constraint,
+    # add composite constraint) + jurisdiction index + chunks table + 2 indexes.
+    assert len(db._DDL_STATEMENTS) == 9
 
 
 def test_tsv_generated_from_text_with_english_config():
@@ -339,9 +351,9 @@ def test_chunks_cascade_delete_from_documents():
 # ===========================================================================
 
 
-def test_document_upsert_conflicts_on_source_ref():
+def test_document_upsert_conflicts_on_jurisdiction_source_ref():
     low = db._UPSERT_DOCUMENT_SQL.lower()
-    assert "on conflict (source_ref) do update" in low
+    assert "on conflict (jurisdiction, source_ref) do update" in low
     assert "returning id" in low
 
 
@@ -371,8 +383,8 @@ def test_chunk_upsert_refreshes_mutable_column(col):
 
 
 def test_upsert_document_sql_placeholder_count_matches_columns():
-    # 9 bound params: source_ref..raw. A mismatch would raise at execute time.
-    assert db._UPSERT_DOCUMENT_SQL.count("%s") == 9
+    # 10 bound params: jurisdiction, source_ref..raw. A mismatch raises at execute.
+    assert db._UPSERT_DOCUMENT_SQL.count("%s") == 10
 
 
 def test_insert_chunk_sql_placeholder_count():
@@ -449,7 +461,8 @@ def test_upsert_parent_binds_all_columns_in_order():
     )
     db.upsert_document(conn, doc, [])
     params = conn._cur.execute.call_args_list[0].args[1]
-    assert params[:8] == ("S", "D", "F", "T", "B", "ST", date(2026, 6, 11), "U")
+    # jurisdiction (default 'phila') is now bound first, then source_ref..url.
+    assert params[:9] == ("phila", "S", "D", "F", "T", "B", "ST", date(2026, 6, 11), "U")
 
 
 @pytest.mark.parametrize(
@@ -470,6 +483,7 @@ def test_upsert_passes_nullable_columns_through_as_none(field, value):
     db.upsert_document(conn, _make_doc(**{field: value}), [])
     params = conn._cur.execute.call_args_list[0].args[1]
     order = [
+        "jurisdiction",
         "source_ref",
         "doc_type",
         "file_no",
@@ -630,8 +644,8 @@ def test_property_parent_source_ref_and_title_bound_verbatim(source_ref, title):
     conn = _fresh_mock_conn()
     db.upsert_document(conn, _make_doc(source_ref=source_ref, title=title), [])
     params = conn._cur.execute.call_args_list[0].args[1]
-    assert params[0] == source_ref  # source_ref position
-    assert params[3] == title  # title position
+    assert params[1] == source_ref  # source_ref position (jurisdiction is [0])
+    assert params[4] == title  # title position
 
 
 # ===========================================================================

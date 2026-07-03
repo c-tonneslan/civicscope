@@ -26,4 +26,4 @@ def ask(req: AskRequest) -> AskResponse:
     # at import time (keeps app startup and tests import-light).
     from app.civic.answer import answer_question
 
-    return answer_question(req.question)
+    return answer_question(req.question, jurisdiction=req.jurisdiction)

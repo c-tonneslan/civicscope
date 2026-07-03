@@ -158,7 +158,7 @@ class TestAnswerRefusalLogic:
     def _patch(self, monkeypatch, *, chunks, raw=None, provider="ollama"):
         from app.config import settings
         monkeypatch.setattr(settings, "llm_provider", provider)
-        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6: chunks)
+        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6, jurisdiction=None: chunks)
         if raw is not None:
             monkeypatch.setattr(answer, "_synthesize", lambda q, c: raw)
 
@@ -291,7 +291,7 @@ class TestProviderDispatch:
         from app.config import settings
         monkeypatch.setattr(settings, "llm_provider", "anthropic")
         monkeypatch.setattr(settings, "anthropic_api_key", "sk-test")
-        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6: [_chunk()])
+        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6, jurisdiction=None: [_chunk()])
         monkeypatch.setattr(answer, "_call_anthropic",
                             lambda q, c: "Answer [Bill 260633].")
         resp = answer.answer_question("q")
@@ -301,7 +301,7 @@ class TestProviderDispatch:
     def test_ollama_dispatches_to_call_ollama(self, monkeypatch):
         from app.config import settings
         monkeypatch.setattr(settings, "llm_provider", "ollama")
-        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6: [_chunk()])
+        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6, jurisdiction=None: [_chunk()])
         monkeypatch.setattr(answer, "_call_ollama",
                             lambda q, c: "Answer [Bill 260633].")
         resp = answer.answer_question("q")
@@ -310,7 +310,7 @@ class TestProviderDispatch:
     def test_ollama_connection_error_gives_ollama_down_hint(self, monkeypatch):
         from app.config import settings
         monkeypatch.setattr(settings, "llm_provider", "ollama")
-        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6: [_chunk()])
+        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6, jurisdiction=None: [_chunk()])
 
         class ConnectError(Exception):
             pass
@@ -326,7 +326,7 @@ class TestProviderDispatch:
     def test_generic_synthesis_error_refuses_with_type_name(self, monkeypatch):
         from app.config import settings
         monkeypatch.setattr(settings, "llm_provider", "ollama")
-        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6: [_chunk()])
+        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6, jurisdiction=None: [_chunk()])
 
         def raise_value(q, c):
             raise ValueError("boom")
@@ -343,7 +343,7 @@ class TestProviderDispatch:
         from app.config import settings
         monkeypatch.setattr(settings, "llm_provider", "anthropic")
         monkeypatch.setattr(settings, "anthropic_api_key", "sk-test")
-        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6: [_chunk()])
+        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6, jurisdiction=None: [_chunk()])
 
         class ConnectError(Exception):
             pass
@@ -368,7 +368,7 @@ class TestProviderDispatch:
         # catches it and returns a graceful refusal rather than crashing.
         from app.config import settings
         monkeypatch.setattr(settings, "llm_provider", "gpt5")
-        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6: [_chunk()])
+        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6, jurisdiction=None: [_chunk()])
         resp = answer.answer_question("q")
         assert resp.refused is True
         assert "ValueError" in resp.answer
@@ -630,7 +630,7 @@ class TestEmptyAndWhitespaceSynthesis:
     def _patch(self, monkeypatch, *, chunks, raw, provider="ollama"):
         from app.config import settings
         monkeypatch.setattr(settings, "llm_provider", provider)
-        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6: chunks)
+        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6, jurisdiction=None: chunks)
         monkeypatch.setattr(answer, "_synthesize", lambda q, c: raw)
 
     def test_empty_string_answer_refuses(self, monkeypatch):
@@ -654,7 +654,7 @@ class TestProviderCasingRobustness:
     def test_uppercase_ollama_still_dispatches(self, monkeypatch, provider):
         from app.config import settings
         monkeypatch.setattr(settings, "llm_provider", provider)
-        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6: [_chunk()])
+        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6, jurisdiction=None: [_chunk()])
         monkeypatch.setattr(answer, "_synthesize", lambda q, c: "ok [Bill 260633]")
         resp = answer.answer_question("q")
         assert resp.refused is False
@@ -679,7 +679,7 @@ class TestProviderCasingRobustness:
         # must still fire when llm_provider is spelled in caps.
         from app.config import settings
         monkeypatch.setattr(settings, "llm_provider", "OLLAMA")
-        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6: [_chunk()])
+        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6, jurisdiction=None: [_chunk()])
 
         class ConnectError(Exception):
             pass
@@ -702,7 +702,7 @@ class TestDuplicateCiteKeyDeterminism:
             _chunk(file_no="260633", title="FIRST", chunk_id=1),
             _chunk(file_no="260633", title="SECOND", chunk_id=2),
         ]
-        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6: chunks)
+        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6, jurisdiction=None: chunks)
         monkeypatch.setattr(answer, "_synthesize", lambda q, c: "ok [Bill 260633]")
         resp = answer.answer_question("q")
         assert [c.file_no for c in resp.citations] == ["260633"]
@@ -715,7 +715,7 @@ class TestDuplicateCiteKeyDeterminism:
             _chunk(file_no="260633", title="Ord A", chunk_id=1),
             _chunk(file_no="240100-A", title="Res B", chunk_id=2),
         ]
-        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6: chunks)
+        monkeypatch.setattr(answer, "retrieve", lambda q, top_k=6, jurisdiction=None: chunks)
         # Cite the second bill first: citation order follows the ANSWER text.
         monkeypatch.setattr(
             answer, "_synthesize",

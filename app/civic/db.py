@@ -100,21 +100,46 @@ _DDL_STATEMENTS = [
     "CREATE EXTENSION IF NOT EXISTS vector;",
     # 2. One row per Legistar Matter. ``source_ref`` (MatterId) is UNIQUE — the
     #    idempotent upsert key. The full original record is kept in ``raw`` JSONB.
+    #    A Legistar MatterId is only unique WITHIN a jurisdiction (Chicago and
+    #    Philadelphia both have a Matter 12345), so the idempotent upsert key is
+    #    the COMPOSITE (jurisdiction, source_ref), not source_ref alone.
     """
     CREATE TABLE IF NOT EXISTS civic_documents (
-        id          BIGSERIAL PRIMARY KEY,
-        source_ref  TEXT NOT NULL UNIQUE,           -- Legistar MatterId (upsert key)
-        doc_type    TEXT,
-        file_no     TEXT,
-        title       TEXT,
-        body_name   TEXT,
-        status      TEXT,
-        intro_date  DATE,
-        url         TEXT,
-        raw         JSONB NOT NULL,
-        loaded_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+        id           BIGSERIAL PRIMARY KEY,
+        jurisdiction TEXT NOT NULL DEFAULT 'phila',  -- Legistar client slug
+        source_ref   TEXT NOT NULL,                  -- Legistar MatterId
+        doc_type     TEXT,
+        file_no      TEXT,
+        title        TEXT,
+        body_name    TEXT,
+        status       TEXT,
+        intro_date   DATE,
+        url          TEXT,
+        raw          JSONB NOT NULL,
+        loaded_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+        UNIQUE (jurisdiction, source_ref)
     );
     """,
+    # 2a. Migration for databases created before multi-jurisdiction support: add
+    #     the column and move uniqueness from source_ref to the composite key.
+    #     Each step is idempotent so init() stays safe to call on every startup.
+    "ALTER TABLE civic_documents ADD COLUMN IF NOT EXISTS "
+    "jurisdiction TEXT NOT NULL DEFAULT 'phila';",
+    "ALTER TABLE civic_documents DROP CONSTRAINT IF EXISTS civic_documents_source_ref_key;",
+    """
+    DO $$ BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conname = 'civic_documents_jurisdiction_source_ref_key'
+        ) THEN
+            ALTER TABLE civic_documents
+                ADD CONSTRAINT civic_documents_jurisdiction_source_ref_key
+                UNIQUE (jurisdiction, source_ref);
+        END IF;
+    END $$;
+    """,
+    "CREATE INDEX IF NOT EXISTS civic_documents_jurisdiction_idx "
+    "ON civic_documents (jurisdiction);",
     # 3. One row per embeddable unit. ``tsv`` is a GENERATED column maintained by
     #    Postgres from ``text`` so lexical search never goes stale. Chunks are
     #    ON DELETE CASCADE from their parent document.
@@ -159,9 +184,10 @@ def init() -> None:
 
 _UPSERT_DOCUMENT_SQL = """
     INSERT INTO civic_documents
-        (source_ref, doc_type, file_no, title, body_name, status, intro_date, url, raw)
-    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-    ON CONFLICT (source_ref) DO UPDATE SET
+        (jurisdiction, source_ref, doc_type, file_no, title, body_name,
+         status, intro_date, url, raw)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    ON CONFLICT (jurisdiction, source_ref) DO UPDATE SET
         doc_type   = EXCLUDED.doc_type,
         file_no    = EXCLUDED.file_no,
         title      = EXCLUDED.title,
@@ -200,6 +226,7 @@ def upsert_document(conn, doc, chunks: Sequence) -> int:
         cur.execute(
             _UPSERT_DOCUMENT_SQL,
             (
+                doc.jurisdiction,
                 doc.source_ref,
                 doc.doc_type,
                 doc.file_no,

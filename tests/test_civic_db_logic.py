@@ -89,7 +89,8 @@ def test_ddl_enables_vector_extension_first():
     [
         "create table if not exists civic_documents",
         "create table if not exists civic_chunks",
-        "source_ref  text not null unique",
+        "source_ref text not null",
+        "unique (jurisdiction, source_ref)",
         "on delete cascade",
         "unique (document_id, chunk_index)",
         "tsvector generated always as",
@@ -101,7 +102,9 @@ def test_ddl_enables_vector_extension_first():
     ],
 )
 def test_ddl_declares_expected_object(needle):
-    blob = " ".join(db._DDL_STATEMENTS).lower()
+    import re
+
+    blob = re.sub(r"\s+", " ", " ".join(db._DDL_STATEMENTS)).lower()
     assert needle in blob
 
 
@@ -111,11 +114,15 @@ def test_vector_column_width_matches_embedding_dim():
 
 
 def test_all_ddl_statements_are_idempotent():
-    # Every CREATE must be IF NOT EXISTS so init() is safe to call every startup.
+    # Every statement must be safe to re-run on each startup: CREATE/ALTER ...
+    # IF (NOT) EXISTS, or a DO block that guards its ALTER with an existence check.
     for stmt in db._DDL_STATEMENTS:
         low = stmt.strip().lower()
-        assert low.startswith("create")
-        assert "if not exists" in low
+        assert (
+            "if not exists" in low
+            or "if exists" in low
+            or low.startswith("do $$")
+        )
 
 
 def test_tsv_is_generated_from_text_column():
@@ -201,8 +208,9 @@ def test_upsert_parent_binds_all_columns_in_order(mock_conn):
                     body_name="B", status="ST", intro_date=None, url="U")
     db.upsert_document(mock_conn, doc, [])
     params = mock_conn._cur.execute.call_args_list[0].args[1]
-    # (source_ref, doc_type, file_no, title, body_name, status, intro_date, url, raw)
-    assert params[:8] == ("S", "D", "F", "T", "B", "ST", None, "U")
+    # (jurisdiction, source_ref, doc_type, file_no, title, body_name, status,
+    #  intro_date, url, raw)
+    assert params[:9] == ("phila", "S", "D", "F", "T", "B", "ST", None, "U")
 
 
 def test_upsert_inserts_each_chunk_with_its_index_text_embedding(mock_conn):
@@ -236,9 +244,9 @@ def test_upsert_insert_count_matches_chunk_count(mock_conn, n_chunks):
 # ===========================================================================
 
 
-def test_document_upsert_conflicts_on_source_ref():
+def test_document_upsert_conflicts_on_jurisdiction_source_ref():
     low = db._UPSERT_DOCUMENT_SQL.lower()
-    assert "on conflict (source_ref) do update" in low
+    assert "on conflict (jurisdiction, source_ref) do update" in low
     assert "loaded_at  = now()" in low or "loaded_at = now()" in low
 
 

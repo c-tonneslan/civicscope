@@ -33,7 +33,7 @@ class CivicDocument:
     re-fetch. ``intro_date`` is parsed to a ``date`` (None when Legistar omits it).
     """
 
-    source_ref: str            # MatterId (upsert key), stringified
+    source_ref: str            # MatterId (upsert key within a jurisdiction)
     doc_type: str | None       # MatterTypeName, e.g. "COMMUNICATION"
     file_no: str | None        # MatterFile, e.g. "260633" — the citation key
     title: str | None          # MatterTitle (falls back to MatterName)
@@ -48,6 +48,9 @@ class CivicDocument:
     # adding it needs no DB migration. None -> ingest falls back to chunking the
     # title, so a Matter is always ingestable even with no/what unreadable PDF.
     body: str | None = None
+    # Legistar client slug the Matter came from (its city). Part of the composite
+    # upsert key with source_ref, since MatterIds only disambiguate within a city.
+    jurisdiction: str = "phila"
 
 
 @dataclass
@@ -82,7 +85,14 @@ class AskRequest(BaseModel):
         ...,
         min_length=1,
         max_length=2000,
-        description="A question about Philadelphia City Council legislation.",
+        description="A question about local City Council legislation.",
+    )
+    # Optional Legistar client slug to scope the answer to one city; None (default)
+    # searches every ingested jurisdiction.
+    jurisdiction: str | None = Field(
+        default=None,
+        max_length=64,
+        description="Legistar client slug (e.g. 'phila', 'chicago'); null = all cities.",
     )
 
     @field_validator("question")
@@ -148,3 +158,16 @@ class TopicActivityResponse(BaseModel):
 
     since: date | None
     topics: list[TopicActivityItem]
+
+
+class JurisdictionItem(BaseModel):
+    """One ingested jurisdiction and how many Matters it holds."""
+
+    slug: str
+    documents: int
+
+
+class JurisdictionsResponse(BaseModel):
+    """Body of ``GET /civic/jurisdictions`` — the cities currently ingested."""
+
+    jurisdictions: list[JurisdictionItem]

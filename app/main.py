@@ -50,11 +50,13 @@ from app.civic.routers import (
     ingest as civic_ingest,
     ask as civic_ask,
     insights as civic_insights,
+    jurisdictions as civic_jurisdictions,
 )
 
-app.include_router(civic_ingest.router)     # POST /civic/ingest
-app.include_router(civic_ask.router)        # POST /civic/ask
-app.include_router(civic_insights.router)   # GET  /civic/insights/{overview,topics}
+app.include_router(civic_ingest.router)         # POST /civic/ingest
+app.include_router(civic_ask.router)            # POST /civic/ask
+app.include_router(civic_insights.router)       # GET  /civic/insights/{overview,topics}
+app.include_router(civic_jurisdictions.router)  # GET  /civic/jurisdictions
 # --------------------------------------------------------------------------
 
 @app.get("/health")
