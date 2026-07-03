@@ -365,6 +365,22 @@ button:disabled {
 .cite-button:hover {
   background: var(--bg);
 }
+/* The #file_no is a permalink; the title+toggle stay a button that expands the
+   inline timeline. Both are siblings in the row (never nested) to keep the DOM
+   valid, and the button carries the flex growth the old single button had. */
+.cite-open {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
 .cite-title {
   flex: 1;
 }

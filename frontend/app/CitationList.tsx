@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -65,11 +66,20 @@ export default function CitationList({
     <ul className="citations">
       {citations.map((c) => (
         <li key={c.file_no}>
-          <button type="button" className="cite-button" onClick={() => toggle(c.file_no)}>
-            <span className="cite-id">#{c.file_no}</span>
-            <span className="cite-title">{c.title}</span>
-            <span className="cite-toggle">{open === c.file_no ? "hide" : "timeline"}</span>
-          </button>
+          <div className="cite-button">
+            <Link
+              className="cite-id"
+              href={`/bill/${encodeURIComponent(c.file_no)}${
+                jurisdiction ? `?jurisdiction=${encodeURIComponent(jurisdiction)}` : ""
+              }`}
+            >
+              #{c.file_no}
+            </Link>
+            <button type="button" className="cite-open" onClick={() => toggle(c.file_no)}>
+              <span className="cite-title">{c.title}</span>
+              <span className="cite-toggle">{open === c.file_no ? "hide" : "timeline"}</span>
+            </button>
+          </div>
           {open === c.file_no && (
             <div className="timeline">
               {loading && <p className="note">Loading timeline…</p>}

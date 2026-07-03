@@ -315,6 +315,33 @@ def bill_rollcall(file_no: str, jurisdiction: str | None = None) -> dict:
             "action_date": action_date, "tally": tally, "votes": votes}
 
 
+def bill_sponsors(file_no: str, jurisdiction: str | None = None) -> dict:
+    """The sponsors of one bill, in sponsorship order (seq 0 = primary)."""
+
+    clause = "" if jurisdiction is None else " AND jurisdiction = %s"
+    params: tuple = (file_no,) if jurisdiction is None else (file_no, jurisdiction)
+
+    with get_conn() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT id FROM civic_documents "
+            f"WHERE file_no = %s{clause} ORDER BY intro_date DESC NULLS LAST LIMIT 1;",
+            params,
+        )
+        row = cur.fetchone()
+        if row is None:
+            return {"file_no": file_no, "found": False, "jurisdiction": jurisdiction,
+                    "sponsors": []}
+        cur.execute(
+            "SELECT name, seq FROM civic_sponsors "
+            "WHERE document_id = %s ORDER BY seq NULLS LAST, name;",
+            (row[0],),
+        )
+        sponsors = [{"name": n, "seq": s} for n, s in cur.fetchall()]
+
+    return {"file_no": file_no, "found": True, "jurisdiction": jurisdiction,
+            "sponsors": sponsors}
+
+
 def member_record(
     person: str, topic: str | None = None, jurisdiction: str | None = None
 ) -> dict:

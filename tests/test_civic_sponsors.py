@@ -114,6 +114,51 @@ class TestTopSponsors:
         assert "phila" in params
 
 
+# --- bill_sponsors ----------------------------------------------------------
+
+
+class TestBillSponsors:
+    def test_found_bill_returns_sponsors_in_seq_order(self, monkeypatch):
+        cur = MagicMock()
+        cur.fetchone.return_value = (7,)
+        cur.fetchall.return_value = [("Squilla", 0), ("Gauthier", 1)]
+        _patch_conn(monkeypatch, insights, cur)
+        out = insights.bill_sponsors("260564", "phila")
+        assert out["found"] is True and out["jurisdiction"] == "phila"
+        assert out["sponsors"] == [{"name": "Squilla", "seq": 0},
+                                   {"name": "Gauthier", "seq": 1}]
+
+    def test_missing_bill_returns_not_found(self, monkeypatch):
+        cur = MagicMock()
+        cur.fetchone.return_value = None
+        _patch_conn(monkeypatch, insights, cur)
+        out = insights.bill_sponsors("999999")
+        assert out["found"] is False and out["sponsors"] == []
+
+    def test_unscoped_binds_only_file_no(self, monkeypatch):
+        cur = MagicMock()
+        cur.fetchone.return_value = None
+        _patch_conn(monkeypatch, insights, cur)
+        insights.bill_sponsors("260564")
+        sql, params = cur.execute.call_args.args
+        assert "jurisdiction" not in sql and params == ("260564",)
+
+
+class TestBillSponsorsRoute:
+    def test_bill_sponsors_route_shape(self, civic_client, monkeypatch):
+        monkeypatch.setattr("app.civic.insights.bill_sponsors",
+                            lambda file_no, jurisdiction=None: {
+                                "file_no": file_no, "found": True,
+                                "jurisdiction": jurisdiction,
+                                "sponsors": [{"name": "Squilla", "seq": 0}]})
+        resp = civic_client.get("/civic/insights/bill-sponsors?file_no=260564")
+        assert resp.status_code == 200
+        assert resp.json()["sponsors"][0] == {"name": "Squilla", "seq": 0}
+
+    def test_bill_sponsors_route_requires_file_no(self, civic_client):
+        assert civic_client.get("/civic/insights/bill-sponsors").status_code == 422
+
+
 # --- backfill_sponsors ------------------------------------------------------
 
 
