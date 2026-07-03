@@ -433,3 +433,56 @@ button:disabled {
 .rollcall-dissent {
   color: var(--danger);
 }
+
+/* --- Browse: filter controls + result rows ----------------------------- */
+.browse-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.browse-filters label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+.browse-filters input,
+.browse-filters select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 14px;
+}
+.browse-filters input:focus,
+.browse-filters select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.bill-row {
+  display: block;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+}
+.bill-row:hover {
+  border-color: var(--accent);
+  text-decoration: none;
+}
+.bill-row-title {
+  display: block;
+  font-size: 15px;
+}
+.bill-row-meta {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}

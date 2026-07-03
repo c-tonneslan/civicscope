@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import CitationList from "./CitationList";
@@ -125,7 +126,9 @@ export default function Home() {
 
   return (
     <main className="container">
-      <p className="eyebrow">civicscope · Ask</p>
+      <p className="eyebrow">
+        civicscope · Ask · <Link href="/browse">Browse all bills</Link>
+      </p>
       <h1>Ask about Philadelphia City Council legislation</h1>
       <p className="lede">
         Answers are grounded in the real Philadelphia City Council records with
