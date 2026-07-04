@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import CitationList from "./CitationList";
@@ -194,7 +195,9 @@ export default function InsightsPanel({ jurisdiction = "" }: { jurisdiction?: st
                 <ul className="sponsor-list">
                   {sponsors.map((s) => (
                     <li key={s.name}>
-                      <span className="sponsor-name">{s.name}</span>
+                      <Link className="sponsor-name" href={`/member/${encodeURIComponent(s.name)}`}>
+                        {s.name}
+                      </Link>
                       <span className="sponsor-count">{s.bills} bills</span>
                     </li>
                   ))}

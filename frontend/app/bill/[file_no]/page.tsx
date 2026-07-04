@@ -163,7 +163,9 @@ function BillView({ fileNo }: { fileNo: string }) {
           <ul className="sponsor-list">
             {sponsors.sponsors.map((s) => (
               <li key={`${s.name}-${s.seq ?? ""}`}>
-                <span className="sponsor-name">{s.name}</span>
+                <Link className="sponsor-name" href={`/member/${encodeURIComponent(s.name)}`}>
+                  {s.name}
+                </Link>
               </li>
             ))}
           </ul>

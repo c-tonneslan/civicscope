@@ -20,12 +20,16 @@ def list_bills(
     since: date | None = None,
     limit: int = 50,
     offset: int = 0,
+    sponsor: str | None = None,
 ) -> dict:
     """A page of Matters (newest first), plus a ``total`` for pagination.
 
     The ``clauses`` are fixed literal fragments chosen by which filters are
     present; all values bind as %s params. ``q`` is a substring match — the
     wildcards live in the bound value (``f"%{q}%"``), never in the SQL string.
+    ``sponsor`` filters to Matters carrying a matching ``civic_sponsors.name``
+    via a correlated EXISTS subquery, so the single-table count/select and
+    totals are unchanged (a JOIN would duplicate multi-sponsor rows).
     Ordered ``intro_date DESC NULLS LAST, id DESC`` so pagination is stable
     across the nullable ``intro_date``.
     """
@@ -47,6 +51,12 @@ def list_bills(
     if since is not None:
         clauses.append("intro_date >= %s")
         params.append(since)
+    if sponsor:
+        clauses.append(
+            "EXISTS (SELECT 1 FROM civic_sponsors s "
+            "WHERE s.document_id = civic_documents.id AND s.name = %s)"
+        )
+        params.append(sponsor)
     where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
 
     with get_conn() as conn, conn.cursor() as cur:
