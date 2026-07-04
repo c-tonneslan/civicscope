@@ -111,8 +111,15 @@ export default function CitationList({
                       — dissent:{" "}
                       {rollcall.votes
                         .filter((v) => v.vote && v.vote !== "Ayes")
-                        .map((v) => `${v.person} (${v.vote})`)
-                        .join(", ")}
+                        .map((v, i) => (
+                          <span key={`${v.person}-${i}`}>
+                            {i > 0 ? ", " : ""}
+                            <Link href={`/member/${encodeURIComponent(v.person)}`}>
+                              {v.person}
+                            </Link>{" "}
+                            ({v.vote})
+                          </span>
+                        ))}
                     </span>
                   )}
                 </p>

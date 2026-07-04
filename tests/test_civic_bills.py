@@ -114,6 +114,23 @@ class TestListBills:
         out = bills.list_bills(limit=999, offset=-4)
         assert out["limit"] == 100 and out["offset"] == 0
 
+    def test_sponsor_predicate(self, monkeypatch):
+        cur = _cursor([], total=0)
+        _patch_conn(monkeypatch, cur)
+        bills.list_bills(sponsor="Jane Doe")
+        sql, params = cur.execute.call_args_list[0].args
+        assert "civic_sponsors" in sql
+        assert "s.name = %s" in sql
+        assert params == ("Jane Doe",)
+
+    def test_sponsor_combines_with_status(self, monkeypatch):
+        cur = _cursor([], total=0)
+        _patch_conn(monkeypatch, cur)
+        bills.list_bills(status="ENACTED", sponsor="Jane Doe")
+        sql, params = cur.execute.call_args_list[0].args
+        assert "status = %s" in sql and "civic_sponsors" in sql
+        assert params == ("ENACTED", "Jane Doe")
+
 
 # ===========================================================================
 # HTTP route
@@ -142,8 +159,8 @@ class TestBillsRoute:
         seen = {}
         monkeypatch.setattr(
             "app.civic.bills.list_bills",
-            lambda q, status, jurisdiction, since, limit, offset: (
-                seen.update(q=q, status=status, since=since) or
+            lambda q, status, jurisdiction, since, limit, offset, sponsor=None: (
+                seen.update(q=q, status=status, since=since, sponsor=sponsor) or
                 {"bills": [], "total": 0, "limit": limit, "offset": offset}
             ),
         )
@@ -151,6 +168,19 @@ class TestBillsRoute:
         assert resp.status_code == 200
         assert seen["q"] == "zoning" and seen["status"] == "ADOPTED"
         assert seen["since"] == date(2026, 6, 1)
+
+    def test_route_passes_sponsor(self, civic_client, monkeypatch):
+        seen = {}
+        monkeypatch.setattr(
+            "app.civic.bills.list_bills",
+            lambda q, status, jurisdiction, since, limit, offset, sponsor=None: (
+                seen.update(sponsor=sponsor) or
+                {"bills": [], "total": 0, "limit": limit, "offset": offset}
+            ),
+        )
+        resp = civic_client.get("/civic/bills?sponsor=Jane%20Doe")
+        assert resp.status_code == 200
+        assert seen["sponsor"] == "Jane Doe"
 
     def test_route_rejects_bad_date(self, civic_client):
         assert civic_client.get("/civic/bills?since=not-a-date").status_code == 422
