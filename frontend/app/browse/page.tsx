@@ -28,12 +28,17 @@ type Jurisdiction = { slug: string; documents: number };
 // aligned with values seen in the corpus; "All" leaves the filter off.
 const STATUSES = ["ADOPTED", "ENACTED", "IN COMMITTEE", "INTRODUCED", "PLACED ON FILE"];
 
+// One page of results; also the ?limit sent to the API so the short-page
+// Next-disable check below is reliable (the API defaults to 50 otherwise).
+const PAGE_SIZE = 20;
+
 export default function Browse() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
   const [jurisdiction, setJurisdiction] = useState("");
   const [jurisdictions, setJurisdictions] = useState<Jurisdiction[]>([]);
   const [results, setResults] = useState<BillListResponse | null>(null);
+  const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,8 +53,10 @@ export default function Browse() {
     };
   }, []);
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  // Shared by the filter form and the Prev/Next buttons. Reads the current
+  // filters from closure and pages via an explicit offset so the buttons can
+  // step without touching the filters. Offset is only committed on success.
+  async function runQuery(nextOffset: number) {
     setLoading(true);
     setError(null);
     try {
@@ -57,6 +64,8 @@ export default function Browse() {
       if (q.trim()) params.set("q", q.trim());
       if (status) params.set("status", status);
       if (jurisdiction) params.set("jurisdiction", jurisdiction);
+      params.set("limit", String(PAGE_SIZE));
+      params.set("offset", String(nextOffset));
       const res = await fetch(`${API_URL}/civic/bills?${params.toString()}`);
       if (!res.ok) {
         setError(
@@ -65,6 +74,7 @@ export default function Browse() {
         return;
       }
       setResults((await res.json()) as BillListResponse);
+      setOffset(nextOffset);
     } catch {
       setError(
         `Couldn't reach the civicscope API at ${API_URL} — is it running on :8000?`
@@ -72,6 +82,12 @@ export default function Browse() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    // A filter/search submit always resets to the first page.
+    runQuery(0);
   }
 
   return (
@@ -153,8 +169,8 @@ export default function Browse() {
           <p className="note">
             {results.total.toLocaleString()} matching bill
             {results.total === 1 ? "" : "s"}
-            {results.total > results.bills.length
-              ? ` — showing ${results.bills.length}`
+            {results.bills.length > 0
+              ? ` — showing ${offset + 1}-${offset + results.bills.length} of ${results.total.toLocaleString()}`
               : ""}
           </p>
           {results.bills.length === 0 ? (
@@ -175,6 +191,22 @@ export default function Browse() {
               </Link>
             ))
           )}
+          <div className="row" style={{ marginTop: 16 }}>
+            <button
+              type="button"
+              onClick={() => runQuery(offset - PAGE_SIZE)}
+              disabled={loading || offset === 0}
+            >
+              Prev
+            </button>
+            <button
+              type="button"
+              onClick={() => runQuery(offset + PAGE_SIZE)}
+              disabled={loading || results.bills.length < PAGE_SIZE}
+            >
+              Next
+            </button>
+          </div>
         </section>
       )}
     </main>
