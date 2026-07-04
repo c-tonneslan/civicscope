@@ -3,6 +3,8 @@
 Backs ``GET /civic/bills``: a paginated, filterable listing of Matters — the
 kiosk "browse" surface alongside the grounded Q&A. Filters are optional and
 combine with AND; every user value is a bound parameter, never interpolated.
+``?topic=`` matches Matters whose chunks hit a ``plainto_tsquery`` over the
+same content-term reduction the insights briefings use.
 Thin and DB-backed so it unit-tests with a mocked cursor.
 """
 
@@ -21,6 +23,7 @@ def list_bills(
     limit: int = 50,
     offset: int = 0,
     sponsor: str | None = None,
+    topic: str | None = None,
 ) -> dict:
     """A page of Matters (newest first), plus a ``total`` for pagination.
 
@@ -30,6 +33,9 @@ def list_bills(
     ``sponsor`` filters to Matters carrying a matching ``civic_sponsors.name``
     via a correlated EXISTS subquery, so the single-table count/select and
     totals are unchanged (a JOIN would duplicate multi-sponsor rows).
+    ``topic`` matches the same way over ``civic_chunks``, reducing the topic to
+    content terms (``_content_terms``) fed to ``plainto_tsquery`` — one bound
+    param, one row per document.
     Ordered ``intro_date DESC NULLS LAST, id DESC`` so pagination is stable
     across the nullable ``intro_date``.
     """
@@ -57,6 +63,15 @@ def list_bills(
             "WHERE s.document_id = civic_documents.id AND s.name = %s)"
         )
         params.append(sponsor)
+    if topic:
+        from app.civic.retrieval import _content_terms
+
+        clauses.append(
+            "EXISTS (SELECT 1 FROM civic_chunks c "
+            "WHERE c.document_id = civic_documents.id "
+            "AND c.tsv @@ plainto_tsquery('english', %s))"
+        )
+        params.append(_content_terms(topic))
     where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
 
     with get_conn() as conn, conn.cursor() as cur:

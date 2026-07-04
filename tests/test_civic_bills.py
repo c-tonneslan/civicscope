@@ -131,6 +131,29 @@ class TestListBills:
         assert "status = %s" in sql and "civic_sponsors" in sql
         assert params == ("ENACTED", "Jane Doe")
 
+    def test_topic_builds_tsquery_clause(self, monkeypatch):
+        from app.civic.retrieval import _content_terms
+
+        cur = _cursor([], total=0)
+        _patch_conn(monkeypatch, cur)
+        bills.list_bills(topic="housing")
+        sql, params = cur.execute.call_args_list[0].args
+        assert "EXISTS" in sql and "civic_chunks" in sql
+        assert "plainto_tsquery('english', %s)" in sql
+        assert params == (_content_terms("housing"),)
+
+    def test_topic_combines_and_limit_offset_last(self, monkeypatch):
+        from app.civic.retrieval import _content_terms
+
+        cur = _cursor([], total=0)
+        _patch_conn(monkeypatch, cur)
+        bills.list_bills(status="ENACTED", topic="housing", limit=5, offset=15)
+        count_sql, count_params = cur.execute.call_args_list[0].args
+        assert "status = %s" in count_sql and "civic_chunks" in count_sql
+        assert count_params == ("ENACTED", _content_terms("housing"))
+        select_params = cur.execute.call_args_list[1].args[1]
+        assert select_params == ("ENACTED", _content_terms("housing"), 5, 15)
+
 
 # ===========================================================================
 # HTTP route
@@ -159,7 +182,7 @@ class TestBillsRoute:
         seen = {}
         monkeypatch.setattr(
             "app.civic.bills.list_bills",
-            lambda q, status, jurisdiction, since, limit, offset, sponsor=None: (
+            lambda q, status, jurisdiction, since, limit, offset, sponsor=None, topic=None: (
                 seen.update(q=q, status=status, since=since, sponsor=sponsor) or
                 {"bills": [], "total": 0, "limit": limit, "offset": offset}
             ),
@@ -173,7 +196,7 @@ class TestBillsRoute:
         seen = {}
         monkeypatch.setattr(
             "app.civic.bills.list_bills",
-            lambda q, status, jurisdiction, since, limit, offset, sponsor=None: (
+            lambda q, status, jurisdiction, since, limit, offset, sponsor=None, topic=None: (
                 seen.update(sponsor=sponsor) or
                 {"bills": [], "total": 0, "limit": limit, "offset": offset}
             ),
@@ -181,6 +204,19 @@ class TestBillsRoute:
         resp = civic_client.get("/civic/bills?sponsor=Jane%20Doe")
         assert resp.status_code == 200
         assert seen["sponsor"] == "Jane Doe"
+
+    def test_route_passes_topic(self, civic_client, monkeypatch):
+        seen = {}
+        monkeypatch.setattr(
+            "app.civic.bills.list_bills",
+            lambda q, status, jurisdiction, since, limit, offset, sponsor=None, topic=None: (
+                seen.update(topic=topic) or
+                {"bills": [], "total": 0, "limit": limit, "offset": offset}
+            ),
+        )
+        resp = civic_client.get("/civic/bills?topic=housing")
+        assert resp.status_code == 200
+        assert seen["topic"] == "housing"
 
     def test_route_rejects_bad_date(self, civic_client):
         assert civic_client.get("/civic/bills?since=not-a-date").status_code == 422

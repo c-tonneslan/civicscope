@@ -163,6 +163,14 @@ export default function InsightsPanel({ jurisdiction = "" }: { jurisdiction?: st
                     </span>
                     <span className="bar-value">{t.bills}</span>
                   </button>
+                  <Link
+                    className="hint"
+                    href={`/topic/${encodeURIComponent(t.topic)}${
+                      jurisdiction ? `?jurisdiction=${encodeURIComponent(jurisdiction)}` : ""
+                    }`}
+                  >
+                    ↗ page
+                  </Link>
                 </li>
               ))}
             </ul>
