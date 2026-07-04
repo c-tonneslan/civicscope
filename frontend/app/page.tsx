@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import CitationList from "./CitationList";
 import Digest from "./Digest";
 import InsightsPanel from "./InsightsPanel";
+import Watchlist from "./Watchlist";
 
 // Base URL the browser uses to reach the FastAPI backend. Inlined at build
 // time by Next because of the NEXT_PUBLIC_ prefix; falls back to the local
@@ -142,6 +143,8 @@ export default function Home() {
         Answers are grounded in the real Philadelphia City Council records with
         citations, or civicscope refuses when the data doesn&apos;t support one.
       </p>
+
+      <Watchlist jurisdiction={jurisdiction} />
 
       <Digest jurisdiction={jurisdiction} />
 
