@@ -155,6 +155,45 @@ class TestTopicActivity:
         assert "to_tsvector('english', coalesce(d.title" in sql
 
 
+class TestTopicTrends:
+    def test_dense_axis_and_zero_filled_series(self, monkeypatch):
+        cur = MagicMock()
+        # One topic returns 2012 & 2014 (a gap year 2013), the rest return nothing.
+        cur.fetchall.side_effect = (
+            [[(2012, 5), (2014, 3)]] + [[]] * (len(insights.TRACKED_TOPICS) - 1)
+        )
+        _patch_conn(monkeypatch, cur)
+        out = insights.topic_trends()
+        assert out["years"] == [2012, 2013, 2014]      # dense, gap filled
+        assert out["topics"][0]["series"] == [5, 0, 3]  # zero-filled at 2013
+        assert out["topics"][1]["series"] == [0, 0, 0]
+
+    def test_empty_corpus_has_no_years(self, monkeypatch):
+        cur = MagicMock()
+        cur.fetchall.side_effect = [[]] * len(insights.TRACKED_TOPICS)
+        _patch_conn(monkeypatch, cur)
+        out = insights.topic_trends()
+        assert out["years"] == []
+        assert all(t["series"] == [] for t in out["topics"])
+
+    def test_jurisdiction_bound(self, monkeypatch):
+        cur = MagicMock()
+        cur.fetchall.side_effect = [[]] * len(insights.TRACKED_TOPICS)
+        _patch_conn(monkeypatch, cur)
+        insights.topic_trends(jurisdiction="phila")
+        sql, params = cur.execute.call_args_list[0].args
+        assert "d.jurisdiction = %s" in sql and params[-1] == "phila"
+
+    def test_trends_route(self, civic_client, monkeypatch):
+        monkeypatch.setattr("app.civic.insights.topic_trends", lambda jurisdiction=None: {
+            "years": [2024, 2025],
+            "topics": [{"topic": "Housing", "series": [10, 7]}],
+        })
+        resp = civic_client.get("/civic/insights/trends?jurisdiction=phila")
+        assert resp.status_code == 200
+        assert resp.json()["topics"][0]["series"] == [10, 7]
+
+
 # ===========================================================================
 # HTTP routes
 # ===========================================================================
