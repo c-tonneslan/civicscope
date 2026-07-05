@@ -149,7 +149,10 @@ class TestTopicActivity:
         insights.topic_activity()
         sql = cur.execute.call_args_list[0].args[0]
         assert "to_tsquery('english', %s)" in sql
-        assert "count(DISTINCT d.id)" in sql
+        # Topic membership is by TITLE (no chunk join) so incidental body mentions
+        # don't inflate the count.
+        assert "civic_chunks" not in sql
+        assert "to_tsvector('english', coalesce(d.title" in sql
 
 
 # ===========================================================================

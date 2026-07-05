@@ -138,7 +138,10 @@ class TestListBills:
         _patch_conn(monkeypatch, cur)
         bills.list_bills(topic="housing")
         sql, params = cur.execute.call_args_list[0].args
-        assert "EXISTS" in sql and "civic_chunks" in sql
+        # Topic membership matches the bill TITLE, not full-text chunks, so a topic
+        # list isn't padded with bills that only mention it in passing.
+        assert "civic_chunks" not in sql
+        assert "to_tsvector('english', coalesce(civic_documents.title" in sql
         assert "plainto_tsquery('english', %s)" in sql
         assert params == (_content_terms("housing"),)
 
@@ -149,7 +152,7 @@ class TestListBills:
         _patch_conn(monkeypatch, cur)
         bills.list_bills(status="ENACTED", topic="housing", limit=5, offset=15)
         count_sql, count_params = cur.execute.call_args_list[0].args
-        assert "status = %s" in count_sql and "civic_chunks" in count_sql
+        assert "status = %s" in count_sql and "to_tsvector" in count_sql
         assert count_params == ("ENACTED", _content_terms("housing"))
         select_params = cur.execute.call_args_list[1].args[1]
         assert select_params == ("ENACTED", _content_terms("housing"), 5, 15)

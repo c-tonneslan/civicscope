@@ -137,7 +137,9 @@ class TestMemberRecord:
         _patch_conn(monkeypatch, insights, cur)
         insights.member_record("CM Gauthier", topic="housing", jurisdiction="phila")
         sql, params = cur.execute.call_args.args
-        assert "JOIN civic_chunks c" in sql
+        # Topic membership matches the TITLE, not full-text chunks.
+        assert "civic_chunks" not in sql
+        assert "to_tsvector('english', coalesce(d.title" in sql
         # (content, person, jurisdiction)
         assert params[0] == "housing" and params[1] == "CM Gauthier"
 

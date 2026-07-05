@@ -101,15 +101,17 @@ class TestTopSponsors:
         assert "civic_chunks" not in sql  # no topic -> no chunk join
         assert cur.execute.call_args.args[1] == (6,)  # only the limit is bound
 
-    def test_topic_scoped_joins_chunks_and_binds_content(self, monkeypatch):
+    def test_topic_scoped_matches_title_and_binds_content(self, monkeypatch):
         cur = MagicMock()
         cur.fetchall.return_value = []
         _patch_conn(monkeypatch, insights, cur)
         insights.top_sponsors(topic="affordable housing", jurisdiction="phila", limit=5)
         sql, params = cur.execute.call_args.args
-        assert "JOIN civic_chunks c" in sql and "to_tsquery" in sql
+        # Topic membership matches the TITLE, not full-text chunks.
+        assert "civic_chunks" not in sql
+        assert "to_tsvector('english', coalesce(d.title" in sql
         assert "d.jurisdiction = %s" in sql
-        # (content, jurisdiction, limit) — content first (FROM), then filters, then limit
+        # (content, jurisdiction, limit) — content first, then filters, then limit
         assert params[0] == "affordable housing" and params[-1] == 5
         assert "phila" in params
 
