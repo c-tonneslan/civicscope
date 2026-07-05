@@ -160,6 +160,20 @@ class TopicActivityResponse(BaseModel):
     topics: list[TopicActivityItem]
 
 
+class TopicTrend(BaseModel):
+    """A topic's per-year bill counts, aligned to the shared ``years`` axis."""
+
+    topic: str
+    series: list[int]
+
+
+class TrendsResponse(BaseModel):
+    """Body of ``GET /civic/insights/trends`` — topic activity over the years."""
+
+    years: list[int]
+    topics: list[TopicTrend]
+
+
 class BriefResponse(BaseModel):
     """Body of ``GET /civic/insights/brief`` — a grounded advisory topic briefing."""
 

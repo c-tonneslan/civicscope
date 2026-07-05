@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import CitationList from "./CitationList";
+import Trends from "./Trends";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -176,6 +177,8 @@ export default function InsightsPanel({ jurisdiction = "" }: { jurisdiction?: st
             </ul>
           </>
         )}
+
+        <Trends jurisdiction={jurisdiction} />
 
         {briefTopic && (
           <div className="brief">

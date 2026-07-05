@@ -18,6 +18,7 @@ from app.civic.schemas import (
     MemberRecordResponse,
     OverviewResponse,
     RollCallResponse,
+    TrendsResponse,
     SponsorsResponse,
     TopicActivityResponse,
     VelocityResponse,
@@ -49,6 +50,15 @@ def topics(
     from app.civic.insights import topic_activity
 
     return TopicActivityResponse(**topic_activity(since, jurisdiction))
+
+
+@router.get("/trends", response_model=TrendsResponse)
+def trends(jurisdiction: str | None = None) -> TrendsResponse:
+    """Per-topic bill counts by year — the multi-year activity trend."""
+
+    from app.civic.insights import topic_trends
+
+    return TrendsResponse(**topic_trends(jurisdiction))
 
 
 @router.get("/brief", response_model=BriefResponse)

@@ -131,6 +131,46 @@ def topic_activity(since: date | None = None, jurisdiction: str | None = None) -
     return {"since": since, "topics": items}
 
 
+def topic_trends(jurisdiction: str | None = None) -> dict:
+    """Per-topic bill counts BY YEAR — the multi-year activity trend.
+
+    One query per curated topic buckets its (title-matched) bills by introduction
+    year. Returns a dense year axis (every year from first to last, zero-filled) so
+    the client can render a comparable series per topic without gap handling.
+    """
+
+    extra = "" if jurisdiction is None else "AND d.jurisdiction = %s"
+
+    topics: list[dict] = []
+    years: set[int] = set()
+    with get_conn() as conn, conn.cursor() as cur:
+        for label, query in TRACKED_TOPICS:
+            params = (query,) if jurisdiction is None else (query, jurisdiction)
+            cur.execute(
+                f"""
+                SELECT EXTRACT(YEAR FROM d.intro_date)::int AS yr, count(*)
+                FROM civic_documents d
+                WHERE to_tsvector('english', coalesce(d.title, '')) @@ to_tsquery('english', %s)
+                  AND d.intro_date IS NOT NULL
+                  {extra}
+                GROUP BY yr ORDER BY yr;
+                """,
+                params,
+            )
+            counts = {yr: n for yr, n in cur.fetchall()}
+            years.update(counts)
+            topics.append({"topic": label, "counts": counts})
+
+    axis = list(range(min(years), max(years) + 1)) if years else []
+    return {
+        "years": axis,
+        "topics": [
+            {"topic": t["topic"], "series": [t["counts"].get(y, 0) for y in axis]}
+            for t in topics
+        ],
+    }
+
+
 def top_sponsors(
     topic: str | None = None,
     jurisdiction: str | None = None,
