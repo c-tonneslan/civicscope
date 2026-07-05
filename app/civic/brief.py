@@ -58,10 +58,11 @@ _BRIEF_SYSTEM_PROMPT = (
 def _matched_bill_count(
     topic: str, jurisdiction: str | None, since: date | None
 ) -> int:
-    """Count distinct bills whose text matches the topic (scoped like the brief).
+    """Count distinct bills ON the topic (by TITLE), scoped like the brief.
 
-    Uses the same content-term reduction as lexical retrieval so the count reflects
-    the same notion of "on this topic" the briefing is built from.
+    Topic membership is decided by the bill's title, not incidental body mentions,
+    so the "matching bills" figure isn't inflated by bills that merely reference the
+    topic in passing. (The briefing itself still grounds on full-text retrieval.)
     """
 
     content = _content_terms(topic)
@@ -72,11 +73,9 @@ def _matched_bill_count(
     with get_conn() as conn, conn.cursor() as cur:
         cur.execute(
             f"""
-            SELECT count(DISTINCT d.id)
+            SELECT count(*)
             FROM civic_documents d
-            JOIN civic_chunks c ON c.document_id = d.id,
-                 plainto_tsquery('english', %s) AS q
-            WHERE c.tsv @@ q
+            WHERE to_tsvector('english', coalesce(d.title, '')) @@ plainto_tsquery('english', %s)
               AND (%s::date IS NULL OR d.intro_date >= %s)
               {extra};
             """,

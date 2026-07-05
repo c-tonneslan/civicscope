@@ -117,10 +117,9 @@ def topic_activity(since: date | None = None, jurisdiction: str | None = None) -
                 params = (query, since, since, jurisdiction)
             cur.execute(
                 f"""
-                SELECT count(DISTINCT d.id)
+                SELECT count(*)
                 FROM civic_documents d
-                JOIN civic_chunks c ON c.document_id = d.id
-                WHERE c.tsv @@ to_tsquery('english', %s)
+                WHERE to_tsvector('english', coalesce(d.title, '')) @@ to_tsquery('english', %s)
                   AND (%s::date IS NULL OR d.intro_date >= %s)
                   {extra};
                 """,
@@ -150,15 +149,15 @@ def top_sponsors(
     # topic here means the same thing it does in retrieval / topic_activity.
     from app.civic.retrieval import _content_terms
 
-    join_chunks = ""
     clauses: list[str] = []
     params: list = []
     if topic:
-        join_chunks = (
-            "JOIN civic_chunks c ON c.document_id = d.id, "
-            "plainto_tsquery('english', %s) AS q"
+        # Topic membership is decided by the bill's TITLE (its human summary), not
+        # incidental full-text mentions — matching the body over-counts (a bill that
+        # says "housing" once anywhere becomes a "housing bill").
+        clauses.append(
+            "to_tsvector('english', coalesce(d.title, '')) @@ plainto_tsquery('english', %s)"
         )
-        clauses.append("c.tsv @@ q")
         params.append(_content_terms(topic))
     if jurisdiction is not None:
         clauses.append("d.jurisdiction = %s")
@@ -175,7 +174,6 @@ def top_sponsors(
             SELECT s.name, count(DISTINCT d.id) AS bills
             FROM civic_sponsors s
             JOIN civic_documents d ON d.id = s.document_id
-            {join_chunks}
             {where}
             GROUP BY s.name
             ORDER BY bills DESC, s.name
@@ -349,16 +347,15 @@ def member_record(
 
     from app.civic.retrieval import _content_terms
 
-    join_chunks = ""
     where = []
     params: list = []
     if topic:
-        join_chunks = (
-            "JOIN civic_chunks c ON c.document_id = d.id, "
-            "plainto_tsquery('english', %s) AS q"
+        # Title-based topic membership (see top_sponsors) — avoids counting a bill
+        # that merely mentions the topic once in its body.
+        where.append(
+            "to_tsvector('english', coalesce(d.title, '')) @@ plainto_tsquery('english', %s)"
         )
-        params.append(_content_terms(topic))  # FROM-clause %s binds first
-        where.append("c.tsv @@ q")
+        params.append(_content_terms(topic))
     where.append("v.person_name = %s")
     params.append(person)
     if jurisdiction is not None:
@@ -372,7 +369,6 @@ def member_record(
             SELECT v.vote_value, count(DISTINCT d.id) AS bills
             FROM civic_votes v
             JOIN civic_documents d ON d.id = v.document_id
-            {join_chunks}
             WHERE {wsql}
             GROUP BY v.vote_value ORDER BY bills DESC;
             """,
