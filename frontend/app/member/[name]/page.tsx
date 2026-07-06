@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, use, useEffect, useState } from "react";
 
+import { PanelSkeleton } from "../../Skeleton";
+
 // Base URL the browser uses to reach the FastAPI backend. Inlined at build
 // time by Next because of the NEXT_PUBLIC_ prefix; falls back to the local
 // backend port so the app works out of the box.
@@ -126,7 +128,7 @@ function MemberView({ name }: { name: string }) {
     return (
       <main className="container">
         <p className="eyebrow">Docket · Member</p>
-        <p className="note">Loading member…</p>
+        <PanelSkeleton lines={6} label="Loading member" />
       </main>
     );
   }
@@ -252,7 +254,7 @@ export default function MemberPage({
       fallback={
         <main className="container">
           <p className="eyebrow">Docket · Member</p>
-          <p className="note">Loading member…</p>
+          <PanelSkeleton lines={6} label="Loading member" />
         </main>
       }
     >

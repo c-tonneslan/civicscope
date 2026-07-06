@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
 import { Sparkline } from "../Trends";
+import { PanelSkeleton } from "../Skeleton";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -171,7 +172,7 @@ function CompareView() {
       <main className="container">
         <p className="eyebrow">Docket · Compare</p>
         <h1>Compare topics</h1>
-        <p className="note">Loading topics…</p>
+        <PanelSkeleton lines={5} label="Loading topics" />
       </main>
     );
   }
@@ -254,7 +255,7 @@ export default function ComparePage() {
       fallback={
         <main className="container">
           <p className="eyebrow">Docket · Compare</p>
-          <p className="note">Loading…</p>
+          <PanelSkeleton lines={5} label="Loading" />
         </main>
       }
     >

@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
 import Trends from "../Trends";
+import { PanelSkeleton } from "../Skeleton";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -90,7 +91,7 @@ function AnalyticsView() {
     return (
       <main className="container">
         <p className="eyebrow">Docket · Analytics</p>
-        <p className="note">Loading analytics…</p>
+        <PanelSkeleton lines={6} label="Loading analytics" />
       </main>
     );
   }
@@ -225,7 +226,7 @@ export default function AnalyticsPage() {
       fallback={
         <main className="container">
           <p className="eyebrow">Docket · Analytics</p>
-          <p className="note">Loading analytics…</p>
+          <PanelSkeleton lines={6} label="Loading analytics" />
         </main>
       }
     >

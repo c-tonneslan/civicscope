@@ -914,3 +914,47 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+/* Loading skeletons — a subtle shimmer while content is still being fetched.
+   Used in place of bare "Loading…" text so the layout doesn't jump on load. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--panel-2);
+  border-radius: var(--radius);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.045),
+    transparent
+  );
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+.skeleton-line {
+  height: 0.85em;
+  margin-bottom: 10px;
+}
+.skeleton-line:last-child {
+  margin-bottom: 0;
+}
+.skeleton-title {
+  height: 1.5em;
+  width: 45%;
+  margin-bottom: 18px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+  }
+}

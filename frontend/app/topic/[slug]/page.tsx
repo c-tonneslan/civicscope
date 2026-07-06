@@ -6,6 +6,7 @@ import { Suspense, use, useEffect, useState } from "react";
 
 import CitationList from "../../CitationList";
 import { Sparkline } from "../../Trends";
+import { PanelSkeleton } from "../../Skeleton";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -91,7 +92,7 @@ function TopicView({ topic }: { topic: string }) {
       <main className="container">
         <p className="eyebrow">Docket · Topic</p>
         <h1>{topic}</h1>
-        <p className="note">Loading topic…</p>
+        <PanelSkeleton lines={5} label="Loading topic" />
       </main>
     );
   }
@@ -210,7 +211,7 @@ export default function TopicPage({
       fallback={
         <main className="container">
           <p className="eyebrow">Docket · Topic</p>
-          <p className="note">Loading topic…</p>
+          <PanelSkeleton lines={5} label="Loading topic" />
         </main>
       }
     >
