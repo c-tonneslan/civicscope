@@ -9,7 +9,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 // User-owned, browser-persisted list of topics. Stable, namespaced key so a
 // future rename doesn't silently orphan someone's watchlist.
-const STORAGE_KEY = "civicscope.watchlist.topics";
+const STORAGE_KEY = "Docket.watchlist.topics";
 
 // Curated quick-add labels mirroring TRACKED_TOPICS in app/civic/insights.py.
 // Hardcoded (like EXAMPLES in page.tsx) — the frontend can't import Python.
@@ -263,7 +263,7 @@ export default function Watchlist({ jurisdiction = "" }: { jurisdiction?: string
 
   return (
     <section className="watchlist" style={{ marginTop: 24 }}>
-      <p className="eyebrow">civicscope · Tracked topics</p>
+      <p className="eyebrow">Docket · Tracked topics</p>
       <div className="panel">
         <form
           className="wl-input-row"

@@ -53,7 +53,7 @@ import httpx
 from ..config import settings
 from .schemas import CivicChunk, CivicDocument
 
-logger = logging.getLogger("civicscope")
+logger = logging.getLogger("docket")
 
 # NOTE: ``pgvector``, ``psycopg`` (via ``app.civic.db``), and ``fastembed`` (via
 # ``app.civic.embeddings``) are imported LAZILY inside ``upsert_documents``
@@ -76,7 +76,7 @@ LEGISTAR_BASE = "https://webapi.legistar.com/v1"
 # A descriptive User-Agent is basic API etiquette: it identifies the project and
 # a contact so the Legistar operators can reach us if our traffic misbehaves,
 # rather than seeing an anonymous default python-httpx agent.
-USER_AGENT = "civicscope-ingest/0.1 (portfolio project; contact cst0520@gmail.com)"
+USER_AGENT = "docket-ingest/0.1 (portfolio project; contact cst0520@gmail.com)"
 
 # OData page size. Legistar serves Matters in pages; we walk them with
 # $top/$skip. 200 is a polite middle ground -- large enough to keep the request

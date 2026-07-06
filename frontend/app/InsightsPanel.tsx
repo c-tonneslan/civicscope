@@ -105,7 +105,7 @@ export default function InsightsPanel({ jurisdiction = "" }: { jurisdiction?: st
 
   return (
     <section className="insights" style={{ marginTop: 32 }}>
-      <p className="eyebrow">civicscope · Insights</p>
+      <p className="eyebrow">Docket · Insights</p>
       <div className="panel">
         {overview && typeof overview.total_documents === "number" && (
           <div className="stats">

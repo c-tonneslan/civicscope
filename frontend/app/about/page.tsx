@@ -56,12 +56,12 @@ export default function AboutPage() {
   return (
     <main className="container">
       <p className="eyebrow">
-        civicscope · <Link href="/">Ask</Link> ·{" "}
+        Docket · <Link href="/">Ask</Link> ·{" "}
         <Link href="/browse">Browse all bills</Link>
       </p>
-      <h1>About civicscope</h1>
+      <h1>About Docket</h1>
       <p className="lede">
-        civicscope turns the public record of local legislation into plain,
+        Docket turns the public record of local legislation into plain,
         answerable questions — grounded in the real documents, or an honest no
         when the records don&apos;t support an answer.
       </p>
@@ -69,7 +69,7 @@ export default function AboutPage() {
       <div className="panel">
         <p className="section-title">What it is</p>
         <p className="answer">
-          Ask a plain-English question about local legislation and civicscope
+          Ask a plain-English question about local legislation and Docket
           answers from the actual bill text, with citations you can open and
           read for yourself. When the records don&apos;t support a confident
           answer, it refuses rather than guessing — the goal is trust, not the
@@ -92,8 +92,8 @@ export default function AboutPage() {
         {loading && <p className="note">Loading coverage…</p>}
         {!loading && failed && (
           <p className="note status-err">
-            Coverage is unavailable — the civicscope API may be offline. The rest
-            of this page still describes how civicscope works.
+            Coverage is unavailable — the Docket API may be offline. The rest
+            of this page still describes how Docket works.
           </p>
         )}
         {!loading && !failed && (

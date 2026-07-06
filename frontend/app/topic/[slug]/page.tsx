@@ -89,7 +89,7 @@ function TopicView({ topic }: { topic: string }) {
   if (loading) {
     return (
       <main className="container">
-        <p className="eyebrow">civicscope · Topic</p>
+        <p className="eyebrow">Docket · Topic</p>
         <h1>{topic}</h1>
         <p className="note">Loading topic…</p>
       </main>
@@ -101,7 +101,7 @@ function TopicView({ topic }: { topic: string }) {
 
   return (
     <main className="container">
-      <p className="eyebrow">civicscope · Topic</p>
+      <p className="eyebrow">Docket · Topic</p>
       <h1>{topic}</h1>
 
       {trend && (
@@ -209,7 +209,7 @@ export default function TopicPage({
     <Suspense
       fallback={
         <main className="container">
-          <p className="eyebrow">civicscope · Topic</p>
+          <p className="eyebrow">Docket · Topic</p>
           <p className="note">Loading topic…</p>
         </main>
       }

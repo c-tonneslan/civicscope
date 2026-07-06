@@ -108,7 +108,7 @@ export default function Browse() {
       const res = await fetch(`${API_URL}/civic/bills?${params.toString()}`);
       if (!res.ok) {
         setError(
-          `The civicscope API returned ${res.status}. Is it running and ingested on :8000?`
+          `The Docket API returned ${res.status}. Is it running and ingested on :8000?`
         );
         return;
       }
@@ -116,7 +116,7 @@ export default function Browse() {
       setOffset(nextOffset);
     } catch {
       setError(
-        `Couldn't reach the civicscope API at ${API_URL} — is it running on :8000?`
+        `Couldn't reach the Docket API at ${API_URL} — is it running on :8000?`
       );
     } finally {
       setLoading(false);
@@ -152,7 +152,7 @@ export default function Browse() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `civicscope-bills-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `Docket-bills-${new Date().toISOString().slice(0, 10)}.csv`;
       document.body.appendChild(a); // required for Firefox
       a.click();
       a.remove();
@@ -164,7 +164,7 @@ export default function Browse() {
       }
     } catch {
       setExportNote(
-        `Couldn't reach the civicscope API at ${API_URL} — is it running on :8000?`
+        `Couldn't reach the Docket API at ${API_URL} — is it running on :8000?`
       );
     } finally {
       setExporting(false);
@@ -174,7 +174,7 @@ export default function Browse() {
   return (
     <main className="container">
       <p className="eyebrow">
-        civicscope · Browse · <Link href="/">Ask</Link>
+        Docket · Browse · <Link href="/">Ask</Link>
       </p>
       <h1>Browse Philadelphia City Council legislation</h1>
       <p className="lede">

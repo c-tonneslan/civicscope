@@ -11,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "civicscope — ask about Philadelphia legislation",
+  title: "Docket — ask about Philadelphia legislation",
   description:
     "Ask plain-English questions about Philadelphia City Council legislation. Answers are grounded in the real records with citations, or an honest refusal.",
 };

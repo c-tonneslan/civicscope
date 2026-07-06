@@ -13,7 +13,7 @@ export default function Nav() {
     <nav className="nav">
       <div className="nav-inner">
         <Link href="/" className="nav-brand">
-          civicscope
+          Docket
         </Link>
         <div className="nav-links">
           <Link href="/browse">Browse</Link>

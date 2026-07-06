@@ -125,7 +125,7 @@ function MemberView({ name }: { name: string }) {
   if (loading) {
     return (
       <main className="container">
-        <p className="eyebrow">civicscope · Member</p>
+        <p className="eyebrow">Docket · Member</p>
         <p className="note">Loading member…</p>
       </main>
     );
@@ -138,7 +138,7 @@ function MemberView({ name }: { name: string }) {
   if (missing) {
     return (
       <main className="container">
-        <p className="eyebrow">civicscope · Member</p>
+        <p className="eyebrow">Docket · Member</p>
         <h1>No record found for {name}</h1>
         <p className="note">
           <Link href="/">← Ask</Link>
@@ -152,7 +152,7 @@ function MemberView({ name }: { name: string }) {
 
   return (
     <main className="container">
-      <p className="eyebrow">civicscope · Member</p>
+      <p className="eyebrow">Docket · Member</p>
       <h1>{name}</h1>
       <p className="note">
         <span className="cite-id">{sponsored.length} sponsored</span>
@@ -251,7 +251,7 @@ export default function MemberPage({
     <Suspense
       fallback={
         <main className="container">
-          <p className="eyebrow">civicscope · Member</p>
+          <p className="eyebrow">Docket · Member</p>
           <p className="note">Loading member…</p>
         </main>
       }

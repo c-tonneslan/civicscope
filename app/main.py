@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 ph = PasswordHasher()
 
-# CORS: the civicscope web UI runs on :3000 and calls this API on :8000, so the
+# CORS: the Docket web UI runs on :3000 and calls this API on :8000, so the
 # browser needs the dev origin allowed for the POST /civic/ask fetch to succeed.
 app.add_middleware(
     CORSMiddleware,

@@ -23,7 +23,7 @@ from fastapi import APIRouter, Header, HTTPException
 from app.config import settings
 from app.civic.schemas import IngestResponse
 
-logger = logging.getLogger("civicscope")
+logger = logging.getLogger("docket")
 
 router = APIRouter(prefix="/civic")
 

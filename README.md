@@ -1,4 +1,4 @@
-# civicscope
+# Docket
 
 Civic-intelligence platform. Ask plain-English questions about real local legislation and get answers that are **grounded in the source records** — with citations — or an honest "I can't ground that" when the data doesn't support an answer.
 

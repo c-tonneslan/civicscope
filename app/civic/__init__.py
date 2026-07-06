@@ -1,4 +1,4 @@
-"""Civic-intelligence slice for civicscope.
+"""Civic-intelligence slice for Docket.
 
 A thin, additive RAG spine over Philadelphia City Council legislation:
 

@@ -94,7 +94,7 @@ function HomeInner() {
       });
       if (!res.ok || !res.body) {
         setError(
-          `The civicscope API returned ${res.status}. Is it running and ingested on :8000?`
+          `The Docket API returned ${res.status}. Is it running and ingested on :8000?`
         );
         return;
       }
@@ -142,7 +142,7 @@ function HomeInner() {
       }
     } catch {
       setError(
-        `Couldn't reach the civicscope API at ${API_URL} — is it running on :8000?`
+        `Couldn't reach the Docket API at ${API_URL} — is it running on :8000?`
       );
     } finally {
       setLoading(false);
@@ -171,7 +171,7 @@ function HomeInner() {
 
   return (
     <main className="container">
-      <p className="eyebrow">civicscope</p>
+      <p className="eyebrow">Docket</p>
       <h1>Ask about Philadelphia City Council legislation</h1>
       <p className="lede">
         Grounded, cited answers across years of Philadelphia City Council
@@ -241,7 +241,7 @@ function HomeInner() {
           />
           <div className="row">
             <button type="submit" disabled={loading || !question.trim()}>
-              {loading ? "Asking…" : "Ask civicscope"}
+              {loading ? "Asking…" : "Ask Docket"}
             </button>
           </div>
         </form>

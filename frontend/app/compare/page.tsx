@@ -169,7 +169,7 @@ function CompareView() {
   if (loadingTopics) {
     return (
       <main className="container">
-        <p className="eyebrow">civicscope · Compare</p>
+        <p className="eyebrow">Docket · Compare</p>
         <h1>Compare topics</h1>
         <p className="note">Loading topics…</p>
       </main>
@@ -179,7 +179,7 @@ function CompareView() {
   if (failed || topics.length === 0) {
     return (
       <main className="container">
-        <p className="eyebrow">civicscope · Compare</p>
+        <p className="eyebrow">Docket · Compare</p>
         <h1>Compare topics</h1>
         <p className="note">Comparison is unavailable right now. Try again shortly.</p>
         <p className="note" style={{ marginTop: 24 }}>
@@ -191,7 +191,7 @@ function CompareView() {
 
   return (
     <main className="container">
-      <p className="eyebrow">civicscope · Compare</p>
+      <p className="eyebrow">Docket · Compare</p>
       <h1>Compare topics</h1>
       <p className="lede">
         Put two topics side by side — activity over time, total volume, and who's driving them.
@@ -253,7 +253,7 @@ export default function ComparePage() {
     <Suspense
       fallback={
         <main className="container">
-          <p className="eyebrow">civicscope · Compare</p>
+          <p className="eyebrow">Docket · Compare</p>
           <p className="note">Loading…</p>
         </main>
       }

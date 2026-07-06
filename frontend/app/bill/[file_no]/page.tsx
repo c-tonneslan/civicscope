@@ -129,7 +129,7 @@ function BillView({ fileNo }: { fileNo: string }) {
   if (loading) {
     return (
       <main className="container">
-        <p className="eyebrow">civicscope · Bill</p>
+        <p className="eyebrow">Docket · Bill</p>
         <p className="note">Loading bill…</p>
       </main>
     );
@@ -141,7 +141,7 @@ function BillView({ fileNo }: { fileNo: string }) {
   if (missing) {
     return (
       <main className="container">
-        <p className="eyebrow">civicscope · Bill</p>
+        <p className="eyebrow">Docket · Bill</p>
         <h1>No bill found for #{fileNo}</h1>
         <p className="note">
           <Link href="/">← Ask</Link>
@@ -154,7 +154,7 @@ function BillView({ fileNo }: { fileNo: string }) {
 
   return (
     <main className="container">
-      <p className="eyebrow">civicscope · Bill</p>
+      <p className="eyebrow">Docket · Bill</p>
       <h1>{timeline?.title ?? `#${fileNo}`}</h1>
       <p className="note">
         <span className="cite-id">#{fileNo}</span>
@@ -274,7 +274,7 @@ export default function BillPage({
     <Suspense
       fallback={
         <main className="container">
-          <p className="eyebrow">civicscope · Bill</p>
+          <p className="eyebrow">Docket · Bill</p>
           <p className="note">Loading bill…</p>
         </main>
       }

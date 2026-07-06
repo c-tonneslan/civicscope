@@ -89,7 +89,7 @@ function AnalyticsView() {
   if (loading) {
     return (
       <main className="container">
-        <p className="eyebrow">civicscope · Analytics</p>
+        <p className="eyebrow">Docket · Analytics</p>
         <p className="note">Loading analytics…</p>
       </main>
     );
@@ -98,7 +98,7 @@ function AnalyticsView() {
   if (failed || !overview) {
     return (
       <main className="container">
-        <p className="eyebrow">civicscope · Analytics</p>
+        <p className="eyebrow">Docket · Analytics</p>
         <h1>Analytics</h1>
         <p className="note">Analytics are unavailable right now. Try again shortly.</p>
         <p className="note" style={{ marginTop: 24 }}>
@@ -116,7 +116,7 @@ function AnalyticsView() {
 
   return (
     <main className="container">
-      <p className="eyebrow">civicscope · Analytics</p>
+      <p className="eyebrow">Docket · Analytics</p>
       <h1>Analytics{jurisdiction ? ` · ${jurisdiction}` : ""}</h1>
       <p className="note">A whole-corpus view of legislative activity, velocity, and sponsorship.</p>
 
@@ -224,7 +224,7 @@ export default function AnalyticsPage() {
     <Suspense
       fallback={
         <main className="container">
-          <p className="eyebrow">civicscope · Analytics</p>
+          <p className="eyebrow">Docket · Analytics</p>
           <p className="note">Loading analytics…</p>
         </main>
       }

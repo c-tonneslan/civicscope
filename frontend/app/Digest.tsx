@@ -77,7 +77,7 @@ export default function Digest({ jurisdiction = "" }: { jurisdiction?: string })
 
   return (
     <section className="digest" style={{ marginTop: 24 }}>
-      <p className="eyebrow">civicscope · What&apos;s new</p>
+      <p className="eyebrow">Docket · What&apos;s new</p>
       <div className="panel">
         {introduced.length > 0 && (
           <>

@@ -34,7 +34,7 @@ if settings.auth_secret and settings.auth_secret != _DEFAULT_SECRET:
     _SECRET = settings.auth_secret
 else:
     _SECRET = secrets.token_hex(32)
-    logging.getLogger("civicscope").warning(
+    logging.getLogger("docket").warning(
         "AUTH_SECRET is not set; using an ephemeral key. Sessions will not "
         "survive a restart. Set AUTH_SECRET for a persistent, deployable signing key."
     )

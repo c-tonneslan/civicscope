@@ -60,7 +60,7 @@ export default function AccountPage() {
     <main className="container">
       <section style={{ marginTop: 24 }}>
         <p className="eyebrow">
-          civicscope · {mode === "login" ? "Sign in" : "Create account"}
+          Docket · {mode === "login" ? "Sign in" : "Create account"}
         </p>
         <div className="panel">
           <form className="auth-form" onSubmit={onSubmit}>

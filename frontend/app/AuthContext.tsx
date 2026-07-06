@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 // Namespaced key, matching the Watchlist convention.
-const STORAGE_KEY = "civicscope.auth.token";
+const STORAGE_KEY = "Docket.auth.token";
 
 type User = { id: number; email: string };
 
