@@ -1,13 +1,22 @@
 :root {
-  --bg: #0b1220;
-  --panel: #131c2e;
-  --border: #243049;
-  --text: #e7ecf5;
-  --muted: #9aa7bd;
-  --accent: #4f8cff;
-  --accent-hover: #3d77e6;
-  --danger: #ff8585;
-  --ok: #7ee0a8;
+  --bg: #0a0c11;
+  --panel: #14171f;
+  --panel-2: #1a1e28;
+  --border: #232833;
+  --border-hover: #333a49;
+  --text: #eaedf3;
+  --muted: #8b94a6;
+  --accent: #6c8cff;
+  --accent-hover: #85a0ff;
+  --accent-soft: rgba(108, 140, 255, 0.13);
+  --accent-ring: rgba(108, 140, 255, 0.34);
+  --danger: #ff7b7b;
+  --ok: #57d9a3;
+
+  --radius: 10px;
+  --radius-lg: 16px;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.28), 0 10px 30px rgba(0, 0, 0, 0.22);
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 * {
@@ -20,18 +29,44 @@ body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif;
-  line-height: 1.55;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* A faint radial wash so the flat dark background has some depth. */
+body {
+  background-image: radial-gradient(
+    900px 500px at 50% -10%,
+    rgba(108, 140, 255, 0.08),
+    transparent 70%
+  );
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+::selection {
+  background: var(--accent-soft);
 }
 
 a {
   color: var(--accent);
   text-decoration: none;
+  transition: color 0.15s var(--ease);
 }
 
 a:hover {
-  text-decoration: underline;
+  color: var(--accent-hover);
+  text-decoration: none;
+}
+
+/* One consistent, accessible focus ring on every interactive element. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
 .container {
@@ -45,7 +80,9 @@ a:hover {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: var(--panel);
+  background: rgba(10, 12, 17, 0.72);
+  backdrop-filter: saturate(160%) blur(12px);
+  -webkit-backdrop-filter: saturate(160%) blur(12px);
   border-bottom: 1px solid var(--border);
 }
 .nav-inner {
@@ -58,8 +95,19 @@ a:hover {
 }
 .nav-brand {
   color: var(--text);
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  font-size: 1.02rem;
+}
+.nav-brand::before {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 9px;
+  border-radius: 3px;
+  background: linear-gradient(135deg, var(--accent), #a07bff);
+  vertical-align: baseline;
 }
 .nav-brand:hover {
   text-decoration: none;
@@ -72,6 +120,7 @@ a:hover {
 .nav-links a {
   color: var(--muted);
   font-size: 0.9rem;
+  transition: color 0.15s var(--ease);
 }
 .nav-links a:hover {
   color: var(--text);
@@ -93,30 +142,36 @@ a:hover {
 }
 
 .eyebrow {
-  font-size: 0.8rem;
-  letter-spacing: 0.12em;
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--accent);
+  font-weight: 600;
   margin: 0 0 16px;
 }
 
 h1 {
-  font-size: 2rem;
-  line-height: 1.25;
+  font-size: 2.4rem;
+  line-height: 1.12;
+  letter-spacing: -0.025em;
+  font-weight: 700;
   margin: 0 0 16px;
 }
 
 .lede {
   color: var(--muted);
-  font-size: 1.05rem;
+  font-size: 1.08rem;
+  line-height: 1.6;
   margin: 0 0 32px;
+  max-width: 60ch;
 }
 
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   padding: 24px;
+  box-shadow: var(--shadow);
 }
 
 label {
@@ -126,21 +181,35 @@ label {
   margin-bottom: 8px;
 }
 
-textarea {
+textarea,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+select {
   width: 100%;
   background: var(--bg);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 12px 14px;
   font-size: 1rem;
   font-family: inherit;
   resize: vertical;
+  transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
 }
 
-textarea:focus {
+textarea::placeholder,
+input::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+textarea:focus,
+input:focus,
+select:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
 }
 
 .examples {
@@ -151,19 +220,22 @@ textarea:focus {
 }
 
 .example-chip {
-  background: var(--panel);
-  color: var(--text);
+  background: var(--panel-2);
+  color: var(--muted);
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 6px 14px;
+  padding: 7px 15px;
   font-size: 0.85rem;
-  font-weight: 400;
+  font-weight: 500;
   cursor: pointer;
+  transition: color 0.15s var(--ease), border-color 0.15s var(--ease),
+    background 0.15s var(--ease);
 }
 
 .example-chip:hover:not(:disabled) {
   border-color: var(--accent);
-  background: var(--panel);
+  background: var(--accent-soft);
+  color: var(--text);
 }
 
 .row {
@@ -175,22 +247,32 @@ textarea:focus {
 
 button {
   background: var(--accent);
-  color: #fff;
+  color: #0a0c11;
   border: none;
-  border-radius: 8px;
-  padding: 12px 20px;
-  font-size: 1rem;
-  font-weight: 600;
+  border-radius: var(--radius);
+  padding: 12px 22px;
+  font-size: 0.98rem;
+  font-weight: 650;
+  font-family: inherit;
   cursor: pointer;
+  transition: background 0.15s var(--ease), transform 0.08s var(--ease),
+    box-shadow 0.15s var(--ease);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 6px 18px rgba(108, 140, 255, 0.22);
 }
 
 button:hover:not(:disabled) {
   background: var(--accent-hover);
 }
 
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
 button:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .note {
@@ -225,11 +307,16 @@ button:disabled {
 
 .citations li {
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px 14px;
+  border-radius: var(--radius);
+  padding: 6px 10px;
   margin-bottom: 8px;
+  background: var(--panel-2);
+  transition: border-color 0.15s var(--ease);
   /* A long unbroken citation title shouldn't overflow the panel. */
   overflow-wrap: anywhere;
+}
+.citations li:hover {
+  border-color: var(--border-hover);
 }
 
 .cite-id {
@@ -545,13 +632,15 @@ button:disabled {
   margin-top: 16px;
 }
 .btn-secondary {
-  background: transparent;
+  background: var(--panel-2);
   color: var(--text);
   border: 1px solid var(--border);
+  box-shadow: none;
 }
 .btn-secondary:hover:not(:disabled) {
-  border-color: var(--accent);
+  border-color: var(--border-hover);
   background: var(--panel);
+  color: var(--text);
 }
 
 /* --- Watchlist: tracked-topic input + per-topic headings --------------- */
