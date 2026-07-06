@@ -43,7 +43,10 @@ const CSV_HEADER = ["file_no", "title", "status", "doc_type", "intro_date"];
 // RFC 4180: quote a field if it contains a comma, double-quote, CR or LF, and
 // escape embedded quotes by doubling them.
 function csvField(v: string | null): string {
-  const s = v == null ? "" : String(v);
+  let s = v == null ? "" : String(v);
+  // A leading =, +, -, or @ can be run as a formula when the CSV is opened in a
+  // spreadsheet; prefix those with an apostrophe to neutralize it.
+  if (/^[=+\-@]/.test(s)) s = "'" + s;
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
