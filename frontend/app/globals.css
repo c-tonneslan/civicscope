@@ -608,3 +608,38 @@ button:disabled {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+
+/* --- About: how-it-works steps + coverage jurisdiction rows ------------- */
+.steps {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.steps li {
+  color: var(--text);
+  font-size: 14px;
+}
+.coverage-jz {
+  list-style: none;
+  margin: 8px 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.coverage-jz li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: 14px;
+}
+.coverage-jz-count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
