@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, use, useEffect, useState } from "react";
 
 import CitationList from "../../CitationList";
+import { Sparkline } from "../../Trends";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -26,6 +27,8 @@ type BillRow = {
   intro_date: string | null;
 };
 type BillListResponse = { bills: BillRow[]; total: number; limit: number; offset: number };
+type Trend = { topic: string; series: number[] };
+type TrendsData = { years: number[]; topics: Trend[] };
 
 // A shareable per-topic hub: the advisory brief, leading sponsors, and the most
 // recent topically-matching bills, all scoped by an optional ?jurisdiction=.
@@ -35,12 +38,14 @@ function TopicView({ topic }: { topic: string }) {
   const [brief, setBrief] = useState<Brief | null>(null);
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [bills, setBills] = useState<BillRow[]>([]);
+  const [trend, setTrend] = useState<{ years: number[]; series: number[] } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let live = true;
     setLoading(true);
     const jz = jurisdiction ? `&jurisdiction=${encodeURIComponent(jurisdiction)}` : "";
+    const jzq = jurisdiction ? `?jurisdiction=${encodeURIComponent(jurisdiction)}` : "";
     const t = encodeURIComponent(topic);
     // A non-OK response still RESOLVES the fetch, so throw on it to route the
     // page to .catch (empty state) instead of parsing an error body.
@@ -53,18 +58,22 @@ function TopicView({ topic }: { topic: string }) {
       getJson(`/civic/insights/brief?topic=${t}${jz}`),
       getJson(`/civic/insights/sponsors?topic=${t}${jz}&limit=10`),
       getJson(`/civic/bills?topic=${t}${jz}&limit=25`),
+      getJson(`/civic/insights/trends${jzq}`),
     ])
-      .then(([b, s, l]: [Brief, { sponsors: Sponsor[] }, BillListResponse]) => {
+      .then(([b, s, l, tr]: [Brief, { sponsors: Sponsor[] }, BillListResponse, TrendsData]) => {
         if (!live) return;
         setBrief(b);
         setSponsors(s.sponsors ?? []);
         setBills(l.bills ?? []);
+        const match = tr.topics.find((x) => x.topic.toLowerCase() === topic.toLowerCase());
+        setTrend(match && tr.years.length >= 2 ? { years: tr.years, series: match.series } : null);
       })
       .catch(() => {
         if (!live) return;
         setBrief(null);
         setSponsors([]);
         setBills([]);
+        setTrend(null);
       })
       .finally(() => live && setLoading(false));
     return () => {
@@ -94,6 +103,28 @@ function TopicView({ topic }: { topic: string }) {
     <main className="container">
       <p className="eyebrow">civicscope · Topic</p>
       <h1>{topic}</h1>
+
+      {trend && (
+        <div className="panel">
+          <p className="section-title">
+            Activity over time{" "}
+            <span className="hint">
+              — {trend.years[0]}–{trend.years[trend.years.length - 1]} (bills/year)
+            </span>
+          </p>
+          <div className="trends">
+            <Sparkline series={trend.series} />
+            <ul className="trend-list">
+              {trend.years.map((y, i) => (
+                <li key={y} className="trend-row">
+                  <span className="trend-label">{y}</span>
+                  <span className="trend-total">{trend.series[i]}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {empty ? (
         <p className="note">No legislative activity found for this topic yet.</p>
