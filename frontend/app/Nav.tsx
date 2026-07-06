@@ -13,6 +13,7 @@ export default function Nav() {
         <div className="nav-links">
           <Link href="/browse">Browse</Link>
           <Link href="/analytics">Analytics</Link>
+          <Link href="/compare">Compare</Link>
           <Link href="/about">About</Link>
         </div>
       </div>

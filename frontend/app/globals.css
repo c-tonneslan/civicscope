@@ -658,3 +658,31 @@ button:disabled {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+
+/* --- Compare: two-column topic comparison ----------------------------- */
+.compare-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 8px;
+}
+.compare-col {
+  min-width: 0; /* let grid children shrink so the sparkline/rows don't overflow */
+}
+.compare-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0 0 12px;
+}
+@media (max-width: 640px) {
+  .compare-grid {
+    grid-template-columns: 1fr;
+  }
+}
