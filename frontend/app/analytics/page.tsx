@@ -178,9 +178,7 @@ function AnalyticsView() {
         </div>
       )}
 
-      <div className="panel">
-        <Trends jurisdiction={jurisdiction} />
-      </div>
+      <Trends jurisdiction={jurisdiction} panel />
 
       {overview.by_status.length > 0 && (
         <div className="panel">

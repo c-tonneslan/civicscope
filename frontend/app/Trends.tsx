@@ -26,7 +26,13 @@ export function Sparkline({ series }: { series: number[] }) {
 
 // Multi-year topic activity trends. Hides itself if the backend is down or the
 // corpus spans fewer than two years (nothing meaningful to trend).
-export default function Trends({ jurisdiction = "" }: { jurisdiction?: string }) {
+export default function Trends({
+  jurisdiction = "",
+  panel = false,
+}: {
+  jurisdiction?: string;
+  panel?: boolean;
+}) {
   const [data, setData] = useState<TrendsData | null>(null);
 
   useEffect(() => {
@@ -46,7 +52,7 @@ export default function Trends({ jurisdiction = "" }: { jurisdiction?: string })
   const last = data.years[data.years.length - 1];
 
   return (
-    <div className="trends">
+    <div className={panel ? "panel trends" : "trends"}>
       <p className="section-title">
         Topic activity over time <span className="hint">— {first}–{last} (bills/year)</span>
       </p>
