@@ -55,16 +55,23 @@ export default function AboutPage() {
 
   return (
     <main className="container">
-      <p className="eyebrow">
-        Docket · <Link href="/">Ask</Link> ·{" "}
-        <Link href="/browse">Browse all bills</Link>
-      </p>
-      <h1>About Docket</h1>
-      <p className="lede">
-        Docket turns the public record of local legislation into plain,
-        answerable questions — grounded in the real documents, or an honest no
-        when the records don&apos;t support an answer.
-      </p>
+      <header className="page-header">
+        <p className="breadcrumb">
+          <Link href="/">Docket</Link>
+          <span className="sep">›</span>
+          <Link href="/">Ask</Link>
+          <span className="sep">›</span>
+          <Link href="/browse">Browse</Link>
+          <span className="sep">›</span>
+          <span className="current">About</span>
+        </p>
+        <h1>About Docket</h1>
+        <p className="lede">
+          Docket turns the public record of local legislation into plain,
+          answerable questions — grounded in the real documents, or an honest
+          no when the records don&apos;t support an answer.
+        </p>
+      </header>
 
       <div className="panel">
         <p className="section-title">What it is</p>
@@ -91,27 +98,29 @@ export default function AboutPage() {
         <p className="eyebrow">Live coverage</p>
         {loading && <p className="note">Loading coverage…</p>}
         {!loading && failed && (
-          <p className="note status-err">
-            Coverage is unavailable — the Docket API may be offline. The rest
-            of this page still describes how Docket works.
-          </p>
+          <div className="error-state">
+            <p className="error-state-msg">
+              Coverage is unavailable — the Docket API may be offline. The rest
+              of this page still describes how Docket works.
+            </p>
+          </div>
         )}
         {!loading && !failed && (
           <>
             {overview && typeof overview.total_documents === "number" && (
-              <div className="stats">
-                <div className="stat">
-                  <span className="stat-num">
+              <div className="kpi-grid">
+                <div className="kpi">
+                  <span className="kpi-num">
                     {overview.total_documents.toLocaleString()}
                   </span>
-                  <span className="stat-label">bills &amp; resolutions</span>
+                  <span className="kpi-label">bills &amp; resolutions</span>
                 </div>
                 {overview.earliest_intro_date && overview.latest_intro_date && (
-                  <div className="stat">
-                    <span className="stat-num">
+                  <div className="kpi">
+                    <span className="kpi-num">
                       {overview.earliest_intro_date} → {overview.latest_intro_date}
                     </span>
-                    <span className="stat-label">introduced-date span</span>
+                    <span className="kpi-label">introduced-date span</span>
                   </div>
                 )}
               </div>
@@ -119,16 +128,16 @@ export default function AboutPage() {
 
             <p className="section-title">Jurisdictions</p>
             {sortedJz.length > 0 ? (
-              <ul className="coverage-jz">
+              <div className="data-list">
                 {sortedJz.map((j) => (
-                  <li key={j.slug}>
-                    <span>{j.slug}</span>
-                    <span className="coverage-jz-count">
+                  <div className="data-row" key={j.slug}>
+                    <span className="data-row-title">{j.slug}</span>
+                    <span className="data-row-meta">
                       {j.documents.toLocaleString()} bills
                     </span>
-                  </li>
+                  </div>
                 ))}
-              </ul>
+              </div>
             ) : (
               <p className="note">No jurisdictions reported.</p>
             )}

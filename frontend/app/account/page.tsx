@@ -58,10 +58,20 @@ export default function AccountPage() {
 
   return (
     <main className="container">
-      <section style={{ marginTop: 24 }}>
-        <p className="eyebrow">
-          Docket · {mode === "login" ? "Sign in" : "Create account"}
-        </p>
+      <header className="page-header">
+        <nav className="breadcrumb" aria-label="Breadcrumb">
+          <span>Docket</span>
+          <span className="sep">›</span>
+          <span className="current">
+            {mode === "login" ? "Sign in" : "Create account"}
+          </span>
+        </nav>
+        <h1>{mode === "login" ? "Sign in" : "Create account"}</h1>
+        <div className="page-header-meta">
+          <span>Sync your watchlist across devices.</span>
+        </div>
+      </header>
+      <section>
         <div className="panel">
           <form className="auth-form" onSubmit={onSubmit}>
             <div>

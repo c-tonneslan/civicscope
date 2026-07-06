@@ -23,7 +23,18 @@ export default function Nav() {
           {ready &&
             (user ? (
               <>
-                <span className="nav-user">{user.email}</span>
+                <span
+                  className="nav-user"
+                  title={user.email}
+                  style={{
+                    maxWidth: "clamp(120px, 30vw, 240px)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {user.email}
+                </span>
                 <button type="button" className="nav-logout" onClick={logout}>
                   Log out
                 </button>

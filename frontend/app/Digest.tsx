@@ -47,6 +47,14 @@ export default function Digest({ jurisdiction = "" }: { jurisdiction?: string })
   // isn't up (or has no recent activity) never breaks the Ask experience.
   if (failed || (!introduced.length && !enacted.length)) return null;
 
+  // Map a bill status to a dual-encoded token class (text is always present).
+  const statusClass = (status: string | null) => {
+    const s = (status ?? "").toUpperCase();
+    if (/ENACTED|ADOPTED/.test(s)) return "is-ok";
+    if (/FAILED|VETOED|PLACED ON FILE/.test(s)) return "is-danger";
+    return "";
+  };
+
   const rows = (items: DigestItem[], enactedList: boolean) => (
     <ul className="citations">
       {items
@@ -68,6 +76,11 @@ export default function Digest({ jurisdiction = "" }: { jurisdiction?: string })
                   {it.title}
                   {when ? ` · ${when}` : ""}
                 </span>
+                {enactedList && it.status && (
+                  <span className={`status-token ${statusClass(it.status)}`.trim()}>
+                    {it.status}
+                  </span>
+                )}
               </div>
             </li>
           );
@@ -81,15 +94,25 @@ export default function Digest({ jurisdiction = "" }: { jurisdiction?: string })
       <div className="panel">
         {introduced.length > 0 && (
           <>
-            <p className="section-title">Recently introduced</p>
+            <div className="section-head">
+              <p className="section-head-title">Recently introduced</p>
+              <p className="section-head-caption">
+                {introduced.length} newest bills entering committee
+              </p>
+            </div>
             {rows(introduced, false)}
           </>
         )}
         {enacted.length > 0 && (
-          <>
-            <p className="section-title">Recently enacted</p>
+          <div style={{ marginTop: introduced.length > 0 ? 24 : 0 }}>
+            <div className="section-head">
+              <p className="section-head-title">Recently enacted</p>
+              <p className="section-head-caption">
+                {enacted.length} bills that became law
+              </p>
+            </div>
             {rows(enacted, true)}
-          </>
+          </div>
         )}
       </div>
     </section>

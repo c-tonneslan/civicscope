@@ -87,11 +87,28 @@ function TopicView({ topic }: { topic: string }) {
       jurisdiction ? `?jurisdiction=${encodeURIComponent(jurisdiction)}` : ""
     }`;
 
+  // Render-time only: dual-encoded status pill class (text always present).
+  const statusClass = (status: string | null) => {
+    const s = (status ?? "").toUpperCase();
+    if (s.includes("ENACTED") || s.includes("ADOPTED")) return "status-token is-ok";
+    if (s.includes("FAILED") || s.includes("VETOED") || s.includes("PLACED ON FILE"))
+      return "status-token is-danger";
+    return "status-token";
+  };
+
   if (loading) {
     return (
-      <main className="container">
-        <p className="eyebrow">Docket · Topic</p>
-        <h1>{topic}</h1>
+      <main className="container-wide">
+        <div className="entity-header page-header">
+          <p className="breadcrumb">
+            <span>Docket</span>
+            <span className="sep">›</span>
+            <span>Topic</span>
+            <span className="sep">›</span>
+            <span className="current">{topic}</span>
+          </p>
+          <h1>{topic}</h1>
+        </div>
         <PanelSkeleton lines={5} label="Loading topic" />
       </main>
     );
@@ -100,20 +117,48 @@ function TopicView({ topic }: { topic: string }) {
   const noBrief = !brief || brief.refused;
   const empty = noBrief && sponsors.length === 0 && bills.length === 0;
 
+  // Prefer the brief's authoritative count when present; else the fetched rows.
+  const matchCount =
+    brief && !brief.refused ? brief.matched_bills : bills.length;
+  // Render-derived: the year with the most matching bills (peak), and the last year.
+  const peakYear = trend
+    ? trend.years[trend.series.indexOf(Math.max(...trend.series))]
+    : null;
+
   return (
-    <main className="container">
-      <p className="eyebrow">Docket · Topic</p>
-      <h1>{topic}</h1>
+    <main className="container-wide">
+      <div className="entity-header page-header">
+        <p className="breadcrumb">
+          <span>Docket</span>
+          <span className="sep">›</span>
+          <span>Topic</span>
+          <span className="sep">›</span>
+          <span className="current">{topic}</span>
+        </p>
+        <h1>{topic}</h1>
+        <div className="stat-chips">
+          <div className="chip-stat">
+            <span className="chip-stat-num">{matchCount}</span>
+            <span className="chip-stat-label">Matching bills</span>
+          </div>
+          {trend && peakYear !== null && (
+            <div className="chip-stat">
+              <span className="chip-stat-num">{peakYear}</span>
+              <span className="chip-stat-label">Peak year</span>
+            </div>
+          )}
+        </div>
+      </div>
 
       {trend && (
         <div className="panel">
-          <p className="section-title">
-            Activity over time{" "}
-            <span className="hint">
-              — {trend.years[0]}–{trend.years[trend.years.length - 1]} (bills/year)
-            </span>
-          </p>
-          <div className="trends">
+          <div className="section-head">
+            <p className="section-head-title">Activity over time</p>
+            <p className="section-head-caption">
+              {trend.years[0]}–{trend.years[trend.years.length - 1]} · bills per year
+            </p>
+          </div>
+          <div className="trends chart-frame">
             <Sparkline series={trend.series} />
             <ul className="trend-list">
               {trend.years.map((y, i) => (
@@ -128,23 +173,38 @@ function TopicView({ topic }: { topic: string }) {
       )}
 
       {empty ? (
-        <p className="note">No legislative activity found for this topic yet.</p>
+        <div className="empty-state">
+          <p className="empty-state-title">No legislative activity yet</p>
+          <p className="empty-state-help">
+            We have no bills, sponsors, or briefing recorded for this topic.
+          </p>
+          <div className="empty-state-actions">
+            <Link href="/" className="btn-secondary">
+              Ask a question
+            </Link>
+            <Link href="/browse" className="btn-secondary">
+              Browse all bills
+            </Link>
+          </div>
+        </div>
       ) : (
         <>
           <div className="panel">
-            <p className="section-title">
-              Advisory briefing
-              {brief && !brief.refused ? ` · ${brief.matched_bills} matching bills` : ""}
-            </p>
+            <p className="section-title">Advisory briefing</p>
             {brief && !brief.refused ? (
-              <>
+              <div className="response">
                 <p className="answer">{brief.briefing}</p>
                 {brief.citations.length > 0 && (
-                  <CitationList citations={brief.citations} jurisdiction={jurisdiction} />
+                  <>
+                    <p className="source-divider">Sources</p>
+                    <CitationList citations={brief.citations} jurisdiction={jurisdiction} />
+                  </>
                 )}
-              </>
+              </div>
             ) : (
-              <p className="note">No briefing available for this topic.</p>
+              <p className="note">
+                No grounded briefing is available for this topic yet.
+              </p>
             )}
           </div>
 
@@ -169,20 +229,24 @@ function TopicView({ topic }: { topic: string }) {
           <div className="panel">
             <p className="section-title">Recent matching bills</p>
             {bills.length > 0 ? (
-              bills.map((b, i) => (
-                <Link
-                  key={b.file_no ?? `row-${i}`}
-                  href={billHref(b.file_no ?? "")}
-                  className="bill-row"
-                >
-                  <span className="bill-row-title">
-                    #{b.file_no ?? "—"} · {b.title ?? "—"}
-                  </span>
-                  <span className="bill-row-meta">
-                    {b.status ?? "—"} · {b.doc_type ?? "—"} · {b.intro_date ?? "—"}
-                  </span>
-                </Link>
-              ))
+              <div className="data-list">
+                {bills.map((b, i) => (
+                  <Link
+                    key={b.file_no ?? `row-${i}`}
+                    href={billHref(b.file_no ?? "")}
+                    className="data-row"
+                  >
+                    <span className="data-row-title">
+                      #{b.file_no ?? "—"} · {b.title ?? "—"}
+                    </span>
+                    <span className="data-row-meta">
+                      <span className={statusClass(b.status)}>{b.status ?? "—"}</span>
+                      {" · "}
+                      {b.doc_type ?? "—"} · {b.intro_date ?? "—"}
+                    </span>
+                  </Link>
+                ))}
+              </div>
             ) : (
               <p className="note">No matching bills found.</p>
             )}
@@ -209,8 +273,14 @@ export default function TopicPage({
   return (
     <Suspense
       fallback={
-        <main className="container">
-          <p className="eyebrow">Docket · Topic</p>
+        <main className="container-wide">
+          <div className="entity-header page-header">
+            <p className="breadcrumb">
+              <span>Docket</span>
+              <span className="sep">›</span>
+              <span className="current">Topic</span>
+            </p>
+          </div>
           <PanelSkeleton lines={5} label="Loading topic" />
         </main>
       }

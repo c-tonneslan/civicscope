@@ -60,6 +60,16 @@ const TOPIC_KEYWORDS: [string, string[]][] = [
   ["Jobs & Labor", ["worker", "wage", "employment", "labor", "union"]],
 ];
 
+// Dual-encoded status pill class from a bill's status string. Render-time only;
+// the label text always carries the meaning, color merely reinforces it.
+function statusTokenClass(status: string | null): string {
+  const s = (status ?? "").toUpperCase();
+  if (s.includes("ENACTED") || s.includes("ADOPTED")) return "status-token is-ok";
+  if (s.includes("FAILED") || s.includes("VETOED") || s.includes("PLACED ON FILE"))
+    return "status-token is-danger";
+  return "status-token";
+}
+
 function topTopics(bills: Bill[]): { topic: string; bills: number }[] {
   const counts = new Map<string, number>();
   for (const b of bills) {
@@ -126,8 +136,12 @@ function MemberView({ name }: { name: string }) {
 
   if (loading) {
     return (
-      <main className="container">
-        <p className="eyebrow">Docket · Member</p>
+      <main className="container-wide">
+        <nav className="breadcrumb" aria-label="Breadcrumb">
+          <Link href="/">Docket</Link>
+          <span className="sep">›</span>
+          <span className="current">Member</span>
+        </nav>
         <PanelSkeleton lines={6} label="Loading member" />
       </main>
     );
@@ -139,92 +153,144 @@ function MemberView({ name }: { name: string }) {
   const missing = sponsored.length === 0 && votes.length === 0;
   if (missing) {
     return (
-      <main className="container">
-        <p className="eyebrow">Docket · Member</p>
-        <h1>No record found for {name}</h1>
-        <p className="note">
-          <Link href="/">← Ask</Link>
-        </p>
+      <main className="container-wide">
+        <nav className="breadcrumb" aria-label="Breadcrumb">
+          <Link href="/">Docket</Link>
+          <span className="sep">›</span>
+          <span className="current">Member</span>
+        </nav>
+        <div className="empty-state">
+          <p className="empty-state-title">No record found for {name}</p>
+          <p className="empty-state-help">
+            This member has no sponsored bills or roll-call votes in the corpus.
+          </p>
+          <div className="empty-state-actions">
+            <Link href="/" className="btn-secondary">
+              ← Ask
+            </Link>
+          </div>
+        </div>
       </main>
     );
   }
 
   const topics = topTopics(sponsored);
   const jzQuery = jurisdiction ? `?jurisdiction=${encodeURIComponent(jurisdiction)}` : "";
+  const recordedVotes = votes.reduce((n, v) => n + v.bills, 0);
+  const hasActivity = activity !== null && activity.years.length >= 2;
 
   return (
-    <main className="container">
-      <p className="eyebrow">Docket · Member</p>
-      <h1>{name}</h1>
-      <p className="note">
-        <span className="cite-id">{sponsored.length} sponsored</span>
-        {votes.length > 0 ? ` · ${votes.reduce((n, v) => n + v.bills, 0)} recorded votes` : ""}
-      </p>
+    <main className="container-wide">
+      <header className="entity-header">
+        <nav className="breadcrumb" aria-label="Breadcrumb">
+          <Link href="/">Docket</Link>
+          <span className="sep">›</span>
+          <span>Member</span>
+          <span className="sep">›</span>
+          <span className="current">{name}</span>
+        </nav>
+        <h1>{name}</h1>
+        <div className="stat-chips">
+          <div className="chip-stat">
+            <span className="chip-stat-num">{sponsored.length}</span>
+            <span className="chip-stat-label">Sponsored bills</span>
+          </div>
+          {votes.length > 0 && (
+            <div className="chip-stat">
+              <span className="chip-stat-num">{recordedVotes}</span>
+              <span className="chip-stat-label">Recorded votes</span>
+            </div>
+          )}
+          {hasActivity && (
+            <div className="chip-stat">
+              <span className="chip-stat-num">
+                {activity.years[activity.years.length - 1] - activity.years[0] + 1}
+              </span>
+              <span className="chip-stat-label">Years active</span>
+            </div>
+          )}
+        </div>
+      </header>
 
       <div className="panel">
         <p className="section-title">Sponsored bills</p>
         {sponsored.length > 0 ? (
-          <ul className="citations">
-            {sponsored.map((b) => (
-              <li key={b.file_no ?? b.title}>
-                <div className="cite-button">
-                  {b.file_no ? (
-                    <Link
-                      className="cite-id"
-                      href={`/bill/${encodeURIComponent(b.file_no)}${jzQuery}`}
-                    >
-                      #{b.file_no}
-                    </Link>
-                  ) : (
-                    <span className="cite-id">—</span>
-                  )}
-                  <span className="cite-title">
-                    {b.title ?? "Untitled"}
-                    {b.status ? ` · ${b.status}` : ""}
+          <div className="data-list">
+            {sponsored.map((b) => {
+              const row = (
+                <>
+                  <span className="data-row-title">
+                    {b.file_no ? (
+                      <>
+                        <span className="cite-id">#{b.file_no}</span> {b.title ?? "Untitled"}
+                      </>
+                    ) : (
+                      b.title ?? "Untitled"
+                    )}
                   </span>
+                  {b.status && (
+                    <span className="data-row-meta">
+                      <span className={statusTokenClass(b.status)}>{b.status}</span>
+                    </span>
+                  )}
+                </>
+              );
+              return b.file_no ? (
+                <Link
+                  key={b.file_no}
+                  className="data-row"
+                  href={`/bill/${encodeURIComponent(b.file_no)}${jzQuery}`}
+                >
+                  {row}
+                </Link>
+              ) : (
+                <div className="data-row" key={b.title}>
+                  {row}
                 </div>
-              </li>
-            ))}
-          </ul>
+              );
+            })}
+          </div>
         ) : (
           <p className="note">No sponsored bills on record for this member.</p>
         )}
+      </div>
 
+      <div className="panel">
         <p className="section-title">Vote record</p>
         {votes.length > 0 ? (
-          <p className="rollcall">
-            {votes.map((v) => `${v.vote} ${v.bills}`).join(" · ")}
-          </p>
+          <p className="rollcall">{votes.map((v) => `${v.vote} ${v.bills}`).join(" · ")}</p>
         ) : (
           <p className="note">No roll-call votes on record for this member.</p>
         )}
-
-        {topics.length > 0 && (
-          <>
-            <p className="section-title">Most-active topics</p>
-            <ul className="sponsor-list">
-              {topics.map((t) => (
-                <li key={t.topic}>
-                  <span className="sponsor-name">{t.topic}</span>
-                  <span className="sponsor-count">{t.bills} bills</span>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-
-        {activity && activity.years.length >= 2 && (
-          <>
-            <p className="section-title">
-              Activity over time{" "}
-              <span className="hint">
-                — {activity.years[0]}–{activity.years[activity.years.length - 1]} (bills/year)
-              </span>
-            </p>
-            <Sparkline series={activity.series} />
-          </>
-        )}
       </div>
+
+      {topics.length > 0 && (
+        <div className="panel">
+          <p className="section-title">Most-active topics</p>
+          <ul className="sponsor-list">
+            {topics.map((t) => (
+              <li key={t.topic}>
+                <span className="sponsor-name">{t.topic}</span>
+                <span className="sponsor-count">{t.bills} bills</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {hasActivity && (
+        <div className="panel">
+          <div className="section-head">
+            <p className="section-head-title">Activity over time</p>
+            <p className="section-head-caption">
+              {activity.years[0]}–{activity.years[activity.years.length - 1]} · bills per year
+            </p>
+          </div>
+          <div className="chart-frame">
+            <Sparkline series={activity.series} />
+          </div>
+        </div>
+      )}
 
       <p className="note" style={{ marginTop: 24 }}>
         <Link href="/">← Ask</Link>
@@ -252,8 +318,12 @@ export default function MemberPage({
   return (
     <Suspense
       fallback={
-        <main className="container">
-          <p className="eyebrow">Docket · Member</p>
+        <main className="container-wide">
+          <nav className="breadcrumb" aria-label="Breadcrumb">
+            <Link href="/">Docket</Link>
+            <span className="sep">›</span>
+            <span className="current">Member</span>
+          </nav>
           <PanelSkeleton lines={6} label="Loading member" />
         </main>
       }

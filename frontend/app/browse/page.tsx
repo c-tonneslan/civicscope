@@ -60,6 +60,17 @@ function billsToCsv(rows: BillRow[]): string {
   return lines.join("\r\n");
 }
 
+// Dual-encoded status pill: color reinforces text, never replaces it.
+// ENACTED/ADOPTED read as affirmative; FAILED/VETOED/PLACED ON FILE as terminal;
+// everything else (in progress) stays muted.
+function statusTokenClass(status: string | null): string {
+  const s = (status ?? "").toUpperCase();
+  if (s === "ENACTED" || s === "ADOPTED") return "status-token is-ok";
+  if (s === "FAILED" || s === "VETOED" || s === "PLACED ON FILE")
+    return "status-token is-danger";
+  return "status-token";
+}
+
 export default function Browse() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
@@ -172,15 +183,19 @@ export default function Browse() {
   }
 
   return (
-    <main className="container">
-      <p className="eyebrow">
-        Docket · Browse · <Link href="/">Ask</Link>
-      </p>
-      <h1>Browse Philadelphia City Council legislation</h1>
-      <p className="lede">
-        Filter the corpus by title, status, or city. Select a bill for its
-        timeline, sponsors, and roll-call.
-      </p>
+    <main className="container-wide">
+      <header className="page-header">
+        <p className="breadcrumb">
+          <Link href="/">Docket</Link>
+          <span className="sep">›</span>
+          <span className="current">Browse</span>
+        </p>
+        <h1>Browse Philadelphia City Council legislation</h1>
+        <p className="lede">
+          Filter the corpus by title, status, or city. Select a bill for its
+          timeline, sponsors, and roll-call.
+        </p>
+      </header>
 
       <div className="panel">
         <form onSubmit={onSubmit}>
@@ -239,15 +254,49 @@ export default function Browse() {
         </form>
       </div>
 
+      {(q.trim() || status || jurisdiction) && (
+        <div className="filter-chips" style={{ marginTop: 16 }}>
+          {q.trim() && (
+            <button
+              type="button"
+              className="example-chip"
+              onClick={() => setQ("")}
+            >
+              Title: “{q.trim()}” ×
+            </button>
+          )}
+          {status && (
+            <button
+              type="button"
+              className="example-chip"
+              onClick={() => setStatus("")}
+            >
+              Status: {status} ×
+            </button>
+          )}
+          {jurisdiction && (
+            <button
+              type="button"
+              className="example-chip"
+              onClick={() => setJurisdiction("")}
+            >
+              City: {jurisdiction} ×
+            </button>
+          )}
+        </div>
+      )}
+
       {error && (
-        <p className="note status-err" style={{ marginTop: 24 }}>
-          {error}
-        </p>
+        <div className="error-state" style={{ marginTop: 24 }}>
+          <p className="error-state-msg" style={{ marginBottom: 0 }}>
+            {error}
+          </p>
+        </div>
       )}
 
       {results && (
         <section style={{ marginTop: 24 }}>
-          <p className="note">
+          <p className="note" style={{ fontVariantNumeric: "tabular-nums" }}>
             {results.total.toLocaleString()} matching bill
             {results.total === 1 ? "" : "s"}
             {results.bills.length > 0
@@ -255,22 +304,45 @@ export default function Browse() {
               : ""}
           </p>
           {results.bills.length === 0 ? (
-            <p className="note">No bills match these filters.</p>
+            <div className="empty-state">
+              <p className="empty-state-title">No bills match these filters.</p>
+              <p className="empty-state-help">
+                Try loosening or clearing the filters to widen the search.
+              </p>
+              <div className="empty-state-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => {
+                    setQ("");
+                    setStatus("");
+                    setJurisdiction("");
+                  }}
+                >
+                  Clear filters
+                </button>
+              </div>
+            </div>
           ) : (
-            results.bills.map((b, i) => (
-              <Link
-                key={b.file_no ?? `row-${i}`}
-                href={`/bill/${encodeURIComponent(b.file_no ?? "")}`}
-                className="bill-row"
-              >
-                <span className="bill-row-title">
-                  #{b.file_no ?? "—"} · {b.title ?? "—"}
-                </span>
-                <span className="bill-row-meta">
-                  {b.status ?? "—"} · {b.doc_type ?? "—"} · {b.intro_date ?? "—"}
-                </span>
-              </Link>
-            ))
+            <div className="data-list">
+              {results.bills.map((b, i) => (
+                <Link
+                  key={b.file_no ?? `row-${i}`}
+                  href={`/bill/${encodeURIComponent(b.file_no ?? "")}`}
+                  className="data-row"
+                >
+                  <span className="data-row-title">
+                    #{b.file_no ?? "—"} · {b.title ?? "—"}
+                  </span>
+                  <span className="data-row-meta">
+                    {b.doc_type ?? "—"} · {b.intro_date ?? "—"}{" "}
+                    <span className={statusTokenClass(b.status)}>
+                      {b.status ?? "—"}
+                    </span>
+                  </span>
+                </Link>
+              ))}
+            </div>
           )}
           <div className="browse-actions">
             <button

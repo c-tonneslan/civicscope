@@ -37,14 +37,22 @@ function CompareColumn({
   return (
     <section className="panel compare-col">
       <p className="section-title">{label}</p>
-      <p className="compare-count">{count ?? "—"} bills</p>
+      <div className="chip-stat" style={{ marginBottom: 20 }}>
+        <span className="chip-stat-num">{count ?? "—"}</span>
+        <span className="chip-stat-label">Total bills</span>
+      </div>
 
       {showSpark && (
         <div className="trends">
-          <p className="section-title">
-            Activity over time <span className="hint">— {first}–{last} (bills/year)</span>
-          </p>
-          <Sparkline series={series} />
+          <div className="section-head">
+            <p className="section-head-title">Activity over time</p>
+            <p className="section-head-caption">
+              {first}–{last} · bills per year
+            </p>
+          </div>
+          <div className="chart-frame">
+            <Sparkline series={series} />
+          </div>
         </div>
       )}
 
@@ -169,9 +177,15 @@ function CompareView() {
 
   if (loadingTopics) {
     return (
-      <main className="container">
-        <p className="eyebrow">Docket · Compare</p>
-        <h1>Compare topics</h1>
+      <main className="container-wide">
+        <div className="page-header">
+          <p className="breadcrumb">
+            <Link href="/">Docket</Link>
+            <span className="sep">›</span>
+            <span className="current">Compare</span>
+          </p>
+          <h1>Compare topics</h1>
+        </div>
         <PanelSkeleton lines={5} label="Loading topics" />
       </main>
     );
@@ -179,9 +193,15 @@ function CompareView() {
 
   if (failed || topics.length === 0) {
     return (
-      <main className="container">
-        <p className="eyebrow">Docket · Compare</p>
-        <h1>Compare topics</h1>
+      <main className="container-wide">
+        <div className="page-header">
+          <p className="breadcrumb">
+            <Link href="/">Docket</Link>
+            <span className="sep">›</span>
+            <span className="current">Compare</span>
+          </p>
+          <h1>Compare topics</h1>
+        </div>
         <p className="note">Comparison is unavailable right now. Try again shortly.</p>
         <p className="note" style={{ marginTop: 24 }}>
           <Link href="/">← Ask</Link>
@@ -191,12 +211,18 @@ function CompareView() {
   }
 
   return (
-    <main className="container">
-      <p className="eyebrow">Docket · Compare</p>
-      <h1>Compare topics</h1>
-      <p className="lede">
-        Put two topics side by side — activity over time, total volume, and who's driving them.
-      </p>
+    <main className="container-wide">
+      <div className="page-header">
+        <p className="breadcrumb">
+          <Link href="/">Docket</Link>
+          <span className="sep">›</span>
+          <span className="current">Compare</span>
+        </p>
+        <h1>Compare topics</h1>
+        <p className="lede">
+          Put two topics side by side — activity over time, total volume, and who's driving them.
+        </p>
+      </div>
 
       <div className="compare-picker browse-filters">
         <div>
@@ -237,7 +263,13 @@ function CompareView() {
           <CompareColumn label={b} count={countFor(b)} trends={trends} sponsors={sponsorsB} />
         </div>
       ) : (
-        <p className="note">Pick two topics to compare.</p>
+        <div className="empty-state">
+          <p className="empty-state-title">Pick two topics to compare</p>
+          <p className="empty-state-help">
+            Choose a topic in each column above to see their volume, activity over time, and top
+            sponsors side by side.
+          </p>
+        </div>
       )}
 
       <p className="note" style={{ marginTop: 24 }}>
@@ -253,8 +285,15 @@ export default function ComparePage() {
   return (
     <Suspense
       fallback={
-        <main className="container">
-          <p className="eyebrow">Docket · Compare</p>
+        <main className="container-wide">
+          <div className="page-header">
+            <p className="breadcrumb">
+              <Link href="/">Docket</Link>
+              <span className="sep">›</span>
+              <span className="current">Compare</span>
+            </p>
+            <h1>Compare topics</h1>
+          </div>
           <PanelSkeleton lines={5} label="Loading" />
         </main>
       }

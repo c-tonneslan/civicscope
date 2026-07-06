@@ -130,7 +130,7 @@ function BillView({ fileNo }: { fileNo: string }) {
 
   if (loading) {
     return (
-      <main className="container">
+      <main className="container-wide">
         <p className="eyebrow">Docket · Bill</p>
         <PanelSkeleton lines={6} label="Loading bill" />
       </main>
@@ -142,119 +142,213 @@ function BillView({ fileNo }: { fileNo: string }) {
   const missing = !timeline?.found && !rollcall?.found;
   if (missing) {
     return (
-      <main className="container">
-        <p className="eyebrow">Docket · Bill</p>
-        <h1>No bill found for #{fileNo}</h1>
-        <p className="note">
-          <Link href="/">← Ask</Link>
-        </p>
+      <main className="container-wide">
+        <div className="empty-state">
+          <p className="empty-state-title">No bill found for #{fileNo}</p>
+          <p className="empty-state-help">
+            We couldn&apos;t match this file number to a Matter in the record.
+          </p>
+          <div className="empty-state-actions">
+            <Link className="btn-secondary" href="/">
+              Ask a question
+            </Link>
+            <Link className="btn-secondary" href="/browse">
+              Browse bills
+            </Link>
+          </div>
+        </div>
       </main>
     );
   }
 
   const dissent = rollcall?.votes.filter((v) => v.vote && v.vote !== "Ayes") ?? [];
 
+  // Dual-encoded status pill: text is always present, color reinforces it.
+  const statusTokenClass = (status: string | null): string => {
+    const s = (status ?? "").toUpperCase();
+    if (s.includes("ENACTED") || s.includes("ADOPTED")) return "status-token is-ok";
+    if (s.includes("FAILED") || s.includes("VETOED") || s.includes("PLACED ON FILE"))
+      return "status-token is-danger";
+    return "status-token";
+  };
+
+  // Map a tally key name to a vote segment lane (position + text, not color alone).
+  const voteSegClass = (key: string): string => {
+    const k = key.toLowerCase();
+    if (k.includes("aye") || k.includes("yea")) return "vote-seg yea";
+    if (k.includes("nay") || k.includes("no")) return "vote-seg nay";
+    return "vote-seg abstain";
+  };
+
+  const tallyEntries = rollcall?.found ? Object.entries(rollcall.tally ?? {}) : [];
+  const tallyTotal = tallyEntries.reduce((sum, [, n]) => sum + n, 0);
+
   return (
-    <main className="container">
-      <p className="eyebrow">Docket · Bill</p>
-      <h1>{timeline?.title ?? `#${fileNo}`}</h1>
-      <p className="note">
-        <span className="cite-id">#{fileNo}</span>
-        {timeline?.status ? ` · ${timeline.status}` : ""}
-        {timeline?.url ? (
-          <>
-            {" · "}
-            <a href={timeline.url} target="_blank" rel="noopener noreferrer">
-              Legistar record
+    <main className="container-wide">
+      <header className="entity-header page-header">
+        <nav className="breadcrumb">
+          <Link href="/">Docket</Link>
+          <span className="sep">›</span>
+          <Link href="/browse">Bill</Link>
+          <span className="sep">›</span>
+          <span className="current">#{fileNo}</span>
+        </nav>
+        <h1>{timeline?.title ?? `#${fileNo}`}</h1>
+        <div className="page-header-meta">
+          {timeline?.status ? (
+            <span className={statusTokenClass(timeline.status)}>{timeline.status}</span>
+          ) : null}
+          {timeline?.url ? (
+            <a
+              className="page-header-actions"
+              href={timeline.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Legistar record ↗
             </a>
-          </>
-        ) : (
-          ""
-        )}
-      </p>
-
-      <div className="panel">
-        <p className="section-title">Timeline</p>
-        {timeline?.found && timeline.timeline.length > 0 ? (
-          <ol className="timeline-list">
-            {timeline.timeline.map((e, i) => (
-              <li key={i}>
-                <span className="tl-date">{e.action_date ?? "—"}</span>
-                <span className="tl-action">
-                  {e.action}
-                  {e.passed ? ` · ${e.passed}` : ""}
-                </span>
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <p className="note">No timeline recorded for this bill yet.</p>
-        )}
-
-        <p className="section-title">Roll-call</p>
-        {rollcall?.found && rollcall.votes.length > 0 ? (
-          <p className="rollcall">
-            <span className="rollcall-label">Roll-call:</span>{" "}
-            {Object.entries(rollcall.tally)
-              .map(([v, n]) => `${v} ${n}`)
-              .join(" · ")}
-            {dissent.length > 0 && (
-              <span className="rollcall-dissent">
-                {" "}
-                — dissent:{" "}
-                {dissent.map((v) => `${v.person} (${v.vote})`).join(", ")}
-              </span>
-            )}
-          </p>
-        ) : (
-          <p className="note">No roll-call recorded for this bill yet.</p>
-        )}
-
-        <p className="section-title">Sponsors</p>
-        {sponsors?.found && sponsors.sponsors.length > 0 ? (
-          <ul className="sponsor-list">
-            {sponsors.sponsors.map((s) => (
-              <li key={`${s.name}-${s.seq ?? ""}`}>
-                <Link className="sponsor-name" href={`/member/${encodeURIComponent(s.name)}`}>
-                  {s.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="note">No sponsors recorded for this bill yet.</p>
-        )}
-      </div>
-
-      {more && more.bills.length > 0 && (
-        <div className="panel">
-          <p className="section-title">
-            More from{" "}
-            <Link
-              className="sponsor-name"
-              href={`/member/${encodeURIComponent(more.sponsor)}`}
-            >
-              {more.sponsor}
-            </Link>
-          </p>
-          {more.bills.map((b, i) => (
-            <Link
-              key={b.file_no ?? `m-${i}`}
-              className="bill-row"
-              href={`/bill/${encodeURIComponent(b.file_no ?? "")}${
-                jurisdiction ? `?jurisdiction=${encodeURIComponent(jurisdiction)}` : ""
-              }`}
-            >
-              <span className="bill-row-title">
-                #{b.file_no ?? "—"} · {b.title ?? "—"}
-              </span>
-              <span className="bill-row-meta">
-                {b.status ?? "—"} · {b.intro_date ?? "—"}
-              </span>
-            </Link>
-          ))}
+          ) : null}
         </div>
-      )}
+      </header>
+
+      <div className="detail-grid">
+        <div className="detail-main">
+          <div className="panel">
+            <p className="section-title">Timeline</p>
+            {timeline?.found && timeline.timeline.length > 0 ? (
+              <ol className="timeline-rail">
+                {timeline.timeline.map((e, i) => (
+                  <li
+                    key={i}
+                    className={i === timeline.timeline.length - 1 ? "is-current" : undefined}
+                  >
+                    <span className="tl-date">{e.action_date ?? "—"}</span>
+                    <span className="tl-action">
+                      {e.action}
+                      {e.passed ? ` · ${e.passed}` : ""}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="note">No timeline recorded for this bill yet.</p>
+            )}
+          </div>
+
+          <div className="panel">
+            <p className="section-title">Roll-call</p>
+            {rollcall?.found && rollcall.votes.length > 0 ? (
+              <div className="vote-tally">
+                <div className="vote-bar">
+                  {tallyEntries.map(([key, n]) => (
+                    <span
+                      key={key}
+                      className={voteSegClass(key)}
+                      style={{ width: tallyTotal > 0 ? `${(n / tallyTotal) * 100}%` : "0%" }}
+                    />
+                  ))}
+                </div>
+                <div className="vote-legend">
+                  {tallyEntries.map(([key, n]) => (
+                    <span key={key}>
+                      {key} {n}
+                    </span>
+                  ))}
+                </div>
+                {dissent.length > 0 && (
+                  <div className="vote-dissent">
+                    {dissent.map((v, i) => (
+                      <Link
+                        key={`${v.person}-${i}`}
+                        className="member-chip"
+                        href={`/member/${encodeURIComponent(v.person)}`}
+                      >
+                        {v.person} <span className="tl-date">({v.vote})</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="note">No roll-call recorded for this bill yet.</p>
+            )}
+          </div>
+        </div>
+
+        <aside className="detail-side">
+          <div className="panel">
+            <p className="section-title">Details</p>
+            <dl className="meta-list">
+              <dt>File no</dt>
+              <dd className="mono">#{fileNo}</dd>
+              <dt>Status</dt>
+              <dd>{timeline?.status ?? "—"}</dd>
+              <dt>Legistar</dt>
+              <dd>
+                {timeline?.url ? (
+                  <a href={timeline.url} target="_blank" rel="noopener noreferrer">
+                    View record ↗
+                  </a>
+                ) : (
+                  "—"
+                )}
+              </dd>
+            </dl>
+          </div>
+
+          <div className="panel">
+            <p className="section-title">Sponsors</p>
+            {sponsors?.found && sponsors.sponsors.length > 0 ? (
+              <ul className="sponsor-list">
+                {sponsors.sponsors.map((s) => (
+                  <li key={`${s.name}-${s.seq ?? ""}`}>
+                    <Link
+                      className="sponsor-name"
+                      href={`/member/${encodeURIComponent(s.name)}`}
+                    >
+                      {s.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="note">No sponsors recorded for this bill yet.</p>
+            )}
+          </div>
+
+          {more && more.bills.length > 0 && (
+            <div className="panel">
+              <p className="section-title">
+                More from{" "}
+                <Link
+                  className="sponsor-name"
+                  href={`/member/${encodeURIComponent(more.sponsor)}`}
+                >
+                  {more.sponsor}
+                </Link>
+              </p>
+              <div className="data-list">
+                {more.bills.map((b, i) => (
+                  <Link
+                    key={b.file_no ?? `m-${i}`}
+                    className="data-row"
+                    href={`/bill/${encodeURIComponent(b.file_no ?? "")}${
+                      jurisdiction ? `?jurisdiction=${encodeURIComponent(jurisdiction)}` : ""
+                    }`}
+                  >
+                    <span className="data-row-title">
+                      #{b.file_no ?? "—"} · {b.title ?? "—"}
+                    </span>
+                    <span className="data-row-meta">
+                      {b.status ?? "—"} · {b.intro_date ?? "—"}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+        </aside>
+      </div>
 
       <p className="note" style={{ marginTop: 24 }}>
         <Link href="/">← Ask</Link>
@@ -275,7 +369,7 @@ export default function BillPage({
   return (
     <Suspense
       fallback={
-        <main className="container">
+        <main className="container-wide">
           <p className="eyebrow">Docket · Bill</p>
           <PanelSkeleton lines={6} label="Loading bill" />
         </main>

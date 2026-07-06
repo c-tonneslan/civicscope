@@ -301,9 +301,12 @@ export default function Watchlist({ jurisdiction = "" }: { jurisdiction?: string
         </div>
 
         {hydrated && topics.length === 0 && (
-          <p className="note">
-            Track a topic to get a daily digest of new legislation on it.
-          </p>
+          <div className="empty-state">
+            <p className="empty-state-title">Track what matters in Council</p>
+            <p className="empty-state-help">
+              Add a topic to get a daily digest of new legislation on it.
+            </p>
+          </div>
         )}
 
         {hydrated && !authed && (
@@ -336,24 +339,22 @@ export default function Watchlist({ jurisdiction = "" }: { jurisdiction?: string
               ) : items.length === 0 ? (
                 <p className="note">No recent bills.</p>
               ) : (
-                <ul className="citations">
+                <div className="data-list">
                   {items.map((it) => (
-                    <li key={it.file_no}>
-                      <div className="cite-button">
-                        <Link
-                          className="cite-id"
-                          href={`/bill/${encodeURIComponent(it.file_no as string)}${jz}`}
-                        >
-                          #{it.file_no}
-                        </Link>
-                        <span className="cite-title">
-                          {it.title}
-                          {it.intro_date ? ` · ${it.intro_date}` : ""}
-                        </span>
-                      </div>
-                    </li>
+                    <Link
+                      key={it.file_no}
+                      className="data-row"
+                      href={`/bill/${encodeURIComponent(it.file_no as string)}${jz}`}
+                    >
+                      <span className="data-row-title">
+                        <span className="cite-id">#{it.file_no}</span> {it.title}
+                      </span>
+                      {it.intro_date ? (
+                        <span className="data-row-meta">{it.intro_date}</span>
+                      ) : null}
+                    </Link>
                   ))}
-                </ul>
+                </div>
               )}
             </div>
           );

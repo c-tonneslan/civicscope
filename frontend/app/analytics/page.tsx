@@ -89,18 +89,46 @@ function AnalyticsView() {
 
   if (loading) {
     return (
-      <main className="container">
-        <p className="eyebrow">Docket · Analytics</p>
-        <PanelSkeleton lines={6} label="Loading analytics" />
+      <main className="container-wide">
+        <div className="page-header">
+          <p className="breadcrumb">
+            <span className="current">Docket</span>
+            <span className="sep">›</span>
+            <span className="current">Analytics</span>
+          </p>
+          <h1>Analytics</h1>
+        </div>
+        <div className="kpi-grid" aria-label="Loading analytics" aria-busy="true">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="kpi">
+              <span className="skeleton skeleton-line" style={{ width: "45%" }} />
+              <span className="skeleton skeleton-title" style={{ width: "70%", marginBottom: 0 }} />
+            </div>
+          ))}
+        </div>
+        <div className="panel">
+          <span className="skeleton skeleton-title" />
+          <div className="bars">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <span key={i} className="skeleton skeleton-line" style={{ width: `${90 - i * 12}%` }} />
+            ))}
+          </div>
+        </div>
       </main>
     );
   }
 
   if (failed || !overview) {
     return (
-      <main className="container">
-        <p className="eyebrow">Docket · Analytics</p>
-        <h1>Analytics</h1>
+      <main className="container-wide">
+        <div className="page-header">
+          <p className="breadcrumb">
+            <span className="current">Docket</span>
+            <span className="sep">›</span>
+            <span className="current">Analytics</span>
+          </p>
+          <h1>Analytics</h1>
+        </div>
         <p className="note">Analytics are unavailable right now. Try again shortly.</p>
         <p className="note" style={{ marginTop: 24 }}>
           <Link href="/">← Ask</Link>
@@ -114,55 +142,78 @@ function AnalyticsView() {
   const months = overview.by_month.slice(-MONTHS_SHOWN);
   const maxMonth = months.reduce((m, i) => Math.max(m, i.count), 1);
   const trimmed = overview.by_month.length > months.length;
+  const maxSponsor = sponsors.reduce((m, s) => Math.max(m, s.bills), 1);
 
   return (
-    <main className="container">
-      <p className="eyebrow">Docket · Analytics</p>
-      <h1>Analytics{jurisdiction ? ` · ${jurisdiction}` : ""}</h1>
-      <p className="note">A whole-corpus view of legislative activity, velocity, and sponsorship.</p>
+    <main className="container-wide">
+      <div className="page-header">
+        <p className="breadcrumb">
+          <Link href="/">Docket</Link>
+          <span className="sep">›</span>
+          <span className="current">Analytics</span>
+        </p>
+        <h1>Analytics{jurisdiction ? ` · ${jurisdiction}` : ""}</h1>
+        <p className="page-header-meta">
+          A whole-corpus view of legislative activity, velocity, and sponsorship.
+        </p>
+      </div>
 
-      <div className="panel">
-        <div className="stats">
-          <div className="stat">
-            <span className="stat-num">{overview.total_documents.toLocaleString()}</span>
-            <span className="stat-label">bills &amp; resolutions</span>
-          </div>
-          {velocity && (
-            <div className="stat">
-              <span className="stat-num">
-                {velocity.avg_days_to_enact != null
-                  ? `~${velocity.avg_days_to_enact} days`
-                  : "—"}
-              </span>
-              <span className="stat-label">avg time to enact</span>
-            </div>
-          )}
-          {velocity && (
-            <div className="stat">
-              <span className="stat-num">{velocity.enacted.toLocaleString()}</span>
-              <span className="stat-label">bills enacted</span>
-            </div>
-          )}
-          {overview.earliest_intro_date && overview.latest_intro_date && (
-            <div className="stat">
-              <span className="stat-num">
-                {overview.earliest_intro_date} → {overview.latest_intro_date}
-              </span>
-              <span className="stat-label">introduced-date span</span>
-            </div>
-          )}
+      {jurisdiction && (
+        <div className="filter-chips">
+          <span className="example-chip" aria-disabled="true">
+            Jurisdiction: {jurisdiction}
+          </span>
         </div>
+      )}
+
+      <div className="kpi-grid">
+        <Link className="kpi kpi-link" href="/browse">
+          <span className="kpi-label">Bills &amp; resolutions</span>
+          <span className="kpi-num">{overview.total_documents.toLocaleString()}</span>
+          <span className="kpi-context">Browse the full corpus →</span>
+        </Link>
+        {velocity && (
+          <div className="kpi">
+            <span className="kpi-label">Avg time to enact</span>
+            <span className="kpi-num">
+              {velocity.avg_days_to_enact != null
+                ? `~${velocity.avg_days_to_enact} days`
+                : "—"}
+            </span>
+            <span className="kpi-context">Introduction to enactment</span>
+          </div>
+        )}
+        {velocity && (
+          <Link className="kpi kpi-link" href="/browse?status=ENACTED">
+            <span className="kpi-label">Bills enacted</span>
+            <span className="kpi-num">{velocity.enacted.toLocaleString()}</span>
+            <span className="kpi-context">Browse enacted →</span>
+          </Link>
+        )}
+        {overview.earliest_intro_date && overview.latest_intro_date && (
+          <div className="kpi">
+            <span className="kpi-label">Introduced-date span</span>
+            <span className="kpi-num" style={{ fontSize: "1.1rem" }}>
+              {overview.earliest_intro_date} → {overview.latest_intro_date}
+            </span>
+            <span className="kpi-context">First to most recent</span>
+          </div>
+        )}
       </div>
 
       {months.length > 0 && (
         <div className="panel">
-          <p className="section-title">
-            Monthly introduction volume{" "}
-            <span className="hint">
-              {trimmed ? `— last ${MONTHS_SHOWN} months (newest last)` : "— newest last"}
-            </span>
-          </p>
-          <ul className="bars">
+          <div className="section-head">
+            <p className="section-head-title">
+              Introduction volume, last {months.length} months
+            </p>
+            <p className="section-head-caption">
+              {trimmed
+                ? `last ${MONTHS_SHOWN} months · newest last · current month partial`
+                : "newest last · current month partial"}
+            </p>
+          </div>
+          <ul className="bars chart-frame">
             {months.map((m) => (
               <li key={m.label} className="bar-row">
                 <span className="bar-label">{m.label}</span>
@@ -181,30 +232,40 @@ function AnalyticsView() {
 
       <Trends jurisdiction={jurisdiction} panel />
 
-      {overview.by_status.length > 0 && (
-        <div className="panel">
-          <p className="section-title">Status breakdown</p>
-          <BarBreakdown items={overview.by_status} />
-        </div>
-      )}
+      {(overview.by_status.length > 0 || overview.by_type.length > 0) && (
+        <div className="breakdown-2">
+          {overview.by_status.length > 0 && (
+            <div className="panel">
+              <p className="section-title">Status breakdown</p>
+              <BarBreakdown items={overview.by_status} />
+            </div>
+          )}
 
-      {overview.by_type.length > 0 && (
-        <div className="panel">
-          <p className="section-title">Document types</p>
-          <BarBreakdown items={overview.by_type} />
+          {overview.by_type.length > 0 && (
+            <div className="panel">
+              <p className="section-title">Document types</p>
+              <BarBreakdown items={overview.by_type} />
+            </div>
+          )}
         </div>
       )}
 
       {sponsors.length > 0 && (
         <div className="panel">
           <p className="section-title">Most active sponsors</p>
-          <ul className="sponsor-list">
+          <ul className="bars">
             {sponsors.map((s) => (
-              <li key={s.name}>
-                <Link className="sponsor-name" href={`/member/${encodeURIComponent(s.name)}`}>
+              <li key={s.name} className="bar-row">
+                <Link className="bar-label" href={`/member/${encodeURIComponent(s.name)}`}>
                   {s.name}
                 </Link>
-                <span className="sponsor-count">{s.bills} bills</span>
+                <span className="bar-track">
+                  <span
+                    className="bar-fill"
+                    style={{ width: `${(s.bills / maxSponsor) * 100}%` }}
+                  />
+                </span>
+                <span className="bar-value">{s.bills}</span>
               </li>
             ))}
           </ul>
@@ -224,8 +285,15 @@ export default function AnalyticsPage() {
   return (
     <Suspense
       fallback={
-        <main className="container">
-          <p className="eyebrow">Docket · Analytics</p>
+        <main className="container-wide">
+          <div className="page-header">
+            <p className="breadcrumb">
+              <span className="current">Docket</span>
+              <span className="sep">›</span>
+              <span className="current">Analytics</span>
+            </p>
+            <h1>Analytics</h1>
+          </div>
           <PanelSkeleton lines={6} label="Loading analytics" />
         </main>
       }

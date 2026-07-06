@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 import CitationList from "./CitationList";
 import Digest from "./Digest";
@@ -169,131 +170,174 @@ function HomeInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount only
   }, []);
 
+  const totalDocuments = jurisdictions.reduce((sum, j) => sum + j.documents, 0);
+
   return (
     <main className="container">
-      <p className="eyebrow">Docket</p>
-      <h1>Ask about Philadelphia City Council legislation</h1>
-      <p className="lede">
-        Grounded, cited answers across years of Philadelphia City Council
-        records — or an honest refusal when the data doesn&apos;t support one.
-      </p>
+      <section className="hero">
+        <p className="eyebrow">Docket</p>
+        <h1>Answers about Philadelphia legislation you can actually cite.</h1>
+        <p className="lede">
+          Grounded, cited answers across years of Philadelphia City Council
+          records — or an honest refusal when the data doesn&apos;t support one.
+        </p>
 
-      <section className="home-section">
-        <h2 className="home-section-title">Your watchlist</h2>
-        <p className="home-section-sub">Topics you&apos;re tracking, at a glance.</p>
-        <Watchlist jurisdiction={jurisdiction} />
+        <div className="hero-stats">
+          {jurisdictions.length > 0 && (
+            <>
+              <div className="hero-stat">
+                <span className="hero-stat-num">{totalDocuments.toLocaleString()}</span>
+                <span className="hero-stat-label">Bills indexed</span>
+              </div>
+              <div className="hero-stat">
+                <span className="hero-stat-num">{jurisdictions.length.toLocaleString()}</span>
+                <span className="hero-stat-label">
+                  {jurisdictions.length === 1 ? "Jurisdiction" : "Jurisdictions"}
+                </span>
+              </div>
+            </>
+          )}
+          <div className="hero-stat">
+            <span className="hero-stat-num">2012–2026</span>
+            <span className="hero-stat-label">Coverage</span>
+          </div>
+          <div className="hero-stat">
+            <span className="hero-stat-num">Every answer</span>
+            <span className="hero-stat-label">Cited</span>
+          </div>
+        </div>
+
+        <div className="panel">
+          {jurisdictions.length > 1 && (
+            <div className="jz-row">
+              <label htmlFor="jurisdiction">City</label>
+              <select
+                id="jurisdiction"
+                value={jurisdiction}
+                onChange={(e) => setJurisdiction(e.target.value)}
+                disabled={loading}
+              >
+                <option value="">All cities</option>
+                {jurisdictions.map((j) => (
+                  <option key={j.slug} value={j.slug}>
+                    {j.slug} ({j.documents.toLocaleString()})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="examples">
+            {EXAMPLES.map((ex) => (
+              <button
+                key={ex}
+                type="button"
+                className="example-chip"
+                onClick={() => setQuestion(ex)}
+                disabled={loading}
+              >
+                {ex}
+              </button>
+            ))}
+          </div>
+
+          <form onSubmit={onSubmit} className="hero-input">
+            <label htmlFor="question">Your question</label>
+            <textarea
+              id="question"
+              rows={4}
+              placeholder="What recent legislation concerns zoning?"
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              disabled={loading}
+            />
+            <div className="row">
+              <button type="submit" disabled={loading || !question.trim()}>
+                {loading ? "Asking…" : "Ask Docket"}
+              </button>
+              <Link href="/browse" className="btn-secondary">
+                Browse all bills
+              </Link>
+            </div>
+          </form>
+        </div>
+
+        {error && (
+          <p className="note status-err" style={{ marginTop: 24 }}>
+            {error}
+          </p>
+        )}
+
+        {!result && loading && streamed && (
+          <div className="response" style={{ marginTop: 24 }}>
+            <p className="answer">{streamed}</p>
+            <p className="note">Drafting — citations are verified when the answer completes.</p>
+          </div>
+        )}
+
+        {result && (
+          <div style={{ marginTop: 24 }}>
+            {result.refused ? (
+              <div className="refusal-card">
+                <p className="refusal-eyebrow">No grounded answer</p>
+                <p className="answer">{result.answer}</p>
+                <div className="refusal-actions">
+                  <button
+                    type="button"
+                    className="example-chip"
+                    onClick={() => setQuestion(EXAMPLES[0])}
+                    disabled={loading}
+                  >
+                    {EXAMPLES[0]}
+                  </button>
+                  <Link href="/browse" className="example-chip">
+                    Browse all bills
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <div className="response">
+                {result.answer.trim() ? (
+                  <>
+                    <p className="answer">{result.answer}</p>
+                    {result.citations.length > 0 ? (
+                      <>
+                        <span
+                          className={
+                            result.citations.length >= 3
+                              ? "grounding-pill is-strong"
+                              : "grounding-pill"
+                          }
+                        >
+                          Grounded in {result.citations.length}{" "}
+                          {result.citations.length === 1 ? "bill" : "bills"}
+                        </span>
+                        <p className="source-divider">Sources</p>
+                        <CitationList citations={result.citations} jurisdiction={jurisdiction} />
+                      </>
+                    ) : (
+                      <p className="note">No citations were returned for this answer.</p>
+                    )}
+                  </>
+                ) : (
+                  <p className="answer refusal">No answer was produced.</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="home-section">
-        <h2 className="home-section-title">This week&apos;s digest</h2>
-        <p className="home-section-sub">What moved recently in Council.</p>
         <Digest jurisdiction={jurisdiction} />
       </section>
 
       <section className="home-section">
-        <h2 className="home-section-title">Ask a question</h2>
-        <p className="home-section-sub">
-          Plain-English questions answered from the record, with citations.
-        </p>
-        <div className="panel">
-        {jurisdictions.length > 1 && (
-          <div className="jz-row">
-            <label htmlFor="jurisdiction">City</label>
-            <select
-              id="jurisdiction"
-              value={jurisdiction}
-              onChange={(e) => setJurisdiction(e.target.value)}
-              disabled={loading}
-            >
-              <option value="">All cities</option>
-              {jurisdictions.map((j) => (
-                <option key={j.slug} value={j.slug}>
-                  {j.slug} ({j.documents.toLocaleString()})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        <div className="examples">
-          {EXAMPLES.map((ex) => (
-            <button
-              key={ex}
-              type="button"
-              className="example-chip"
-              onClick={() => setQuestion(ex)}
-              disabled={loading}
-            >
-              {ex}
-            </button>
-          ))}
-        </div>
-
-        <form onSubmit={onSubmit}>
-          <label htmlFor="question">Your question</label>
-          <textarea
-            id="question"
-            rows={4}
-            placeholder="What recent legislation concerns zoning?"
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            disabled={loading}
-          />
-          <div className="row">
-            <button type="submit" disabled={loading || !question.trim()}>
-              {loading ? "Asking…" : "Ask Docket"}
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {error && (
-        <p className="note status-err" style={{ marginTop: 24 }}>
-          {error}
-        </p>
-      )}
-
-      {!result && loading && streamed && (
-        <section style={{ marginTop: 24 }}>
-          <div className="panel">
-            <p className="answer">{streamed}</p>
-            <p className="note">Drafting — citations are verified when the answer completes.</p>
-          </div>
-        </section>
-      )}
-
-      {result && (
-        <section style={{ marginTop: 24 }}>
-          <div className="panel">
-            {result.refused ? (
-              <p className="answer refusal">{result.answer}</p>
-            ) : result.answer.trim() ? (
-              <p className="answer">{result.answer}</p>
-            ) : (
-              <p className="answer refusal">No answer was produced.</p>
-            )}
-
-            {!result.refused && result.citations.length > 0 && (
-              <>
-                <p className="section-title">
-                  Citations <span className="hint">— click a bill for its timeline</span>
-                </p>
-                <CitationList citations={result.citations} jurisdiction={jurisdiction} />
-              </>
-            )}
-
-            {!result.refused && result.citations.length === 0 && (
-              <p className="note">
-                No citations were returned for this answer.
-              </p>
-            )}
-          </div>
-        </section>
-      )}
+        <InsightsPanel jurisdiction={jurisdiction} />
       </section>
 
       <section className="home-section">
-        <InsightsPanel jurisdiction={jurisdiction} />
+        <Watchlist jurisdiction={jurisdiction} />
       </section>
     </main>
   );

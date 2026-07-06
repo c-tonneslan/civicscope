@@ -17,6 +17,24 @@
   --radius-lg: 16px;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.28), 0 10px 30px rgba(0, 0, 0, 0.22);
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* content widths */
+  --measure-prose: 720px; /* ask/answer, about, account */
+  --measure-wide: 1080px; /* analytics, browse, compare */
+
+  /* 4px spacing scale (reference these instead of raw px going forward) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-8: 48px;
+
+  /* status wash (dual-encoded with text, never color-only) */
+  --ok-soft: rgba(87, 217, 163, 0.13);
+  --danger-soft: rgba(255, 123, 123, 0.12);
+  --muted-soft: rgba(139, 148, 166, 0.12);
 }
 
 * {
@@ -71,6 +89,13 @@ a:hover {
 
 .container {
   max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 24px 96px;
+}
+
+/* Wider content column for data-dense pages (analytics, browse, compare). */
+.container-wide {
+  max-width: var(--measure-wide);
   margin: 0 auto;
   padding: 48px 24px 96px;
 }
@@ -349,6 +374,7 @@ button:disabled {
   font-size: 15px;
   font-weight: 600;
   color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 .stat-label {
   font-size: 12px;
@@ -602,17 +628,22 @@ button:disabled {
   outline: none;
   border-color: var(--accent);
 }
+/* Refactored to the .data-row model: no per-row border/margin/radius; the row
+   lives inside a .data-list surface and hover is a background lift, not a border
+   flip. Kept as a class so existing call sites keep working. */
 .bill-row {
   display: block;
-  padding: 12px 14px;
-  margin-bottom: 8px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
   background: var(--panel);
   color: var(--text);
+  transition: background 0.12s var(--ease);
+}
+.bill-row:last-child {
+  border-bottom: none;
 }
 .bill-row:hover {
-  border-color: var(--accent);
+  background: var(--panel-2);
   text-decoration: none;
 }
 .bill-row-title {
@@ -823,6 +854,552 @@ button:disabled {
   font-size: 0.9rem;
   margin: 0 0 12px;
 }
+/* ======================================================================
+   DESIGN SYSTEM — component library (additive; uses existing tokens)
+   ====================================================================== */
+
+/* --- Page identity: header + breadcrumb -------------------------------- */
+.page-header {
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+.page-header .eyebrow {
+  margin-bottom: 10px;
+}
+.page-header h1 {
+  margin-bottom: 8px;
+}
+.page-header-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+.page-header-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+.breadcrumb a {
+  color: var(--muted);
+}
+.breadcrumb a:hover {
+  color: var(--text);
+}
+.breadcrumb .sep {
+  opacity: 0.5;
+}
+.breadcrumb .current {
+  color: var(--accent);
+}
+
+/* --- Home answer-box hero ---------------------------------------------- */
+.hero {
+  padding-top: var(--space-6);
+  margin-bottom: var(--space-8);
+}
+.hero h1 {
+  font-size: 2.9rem;
+  letter-spacing: -0.03em;
+  margin-bottom: 14px;
+}
+.hero .lede {
+  font-size: 1.12rem;
+  margin-bottom: var(--space-6);
+}
+.hero-input textarea {
+  font-size: 1.05rem;
+  padding: 16px 18px;
+  min-height: 60px;
+  border-radius: var(--radius-lg);
+}
+.hero-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 40px;
+  margin: 0 0 var(--space-6);
+}
+.hero-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hero-stat-num {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.hero-stat-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+/* --- KPI tiles --------------------------------------------------------- */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+.kpi {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.kpi-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.kpi-num {
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+.kpi-context {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.kpi-link {
+  transition: border-color 0.15s var(--ease), background 0.15s var(--ease);
+}
+.kpi-link:hover {
+  border-color: var(--border-hover);
+  background: var(--panel-2);
+  text-decoration: none;
+}
+
+/* --- Insight-first section head ---------------------------------------- */
+.section-head {
+  margin: 0 0 var(--space-4);
+}
+.section-head-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 2px;
+}
+.section-head-caption {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+.chart-frame {
+  margin-top: var(--space-2);
+}
+
+/* --- Single-surface list primitive ------------------------------------- */
+.data-list {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  overflow: hidden;
+}
+.data-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 4px 16px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  transition: background 0.12s var(--ease);
+}
+.data-row:last-child {
+  border-bottom: none;
+}
+.data-row:hover {
+  background: var(--panel-2);
+  text-decoration: none;
+}
+.data-row-title {
+  font-size: 0.94rem;
+  overflow-wrap: anywhere;
+}
+.data-row-meta {
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Status token (dual-encoded, never color-only) --------------------- */
+.status-token {
+  display: inline-block;
+  padding: 1px 9px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: var(--muted-soft);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.status-token.is-ok {
+  color: var(--ok);
+  border-color: rgba(87, 217, 163, 0.35);
+  background: var(--ok-soft);
+}
+.status-token.is-danger {
+  color: var(--danger);
+  border-color: rgba(255, 123, 123, 0.35);
+  background: var(--danger-soft);
+}
+
+/* --- Entity header: identity block + stat chips ------------------------ */
+.entity-header {
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+.stat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 28px;
+  margin-top: 14px;
+}
+.chip-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.chip-stat-num {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.chip-stat-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+/* --- Two-column detail layout with sticky facts rail ------------------- */
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--space-5);
+  align-items: start;
+}
+.detail-main {
+  min-width: 0;
+}
+.detail-side {
+  position: sticky;
+  top: 84px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* --- Definition-list metadata ------------------------------------------ */
+.meta-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  margin: 0;
+}
+.meta-list dt {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  align-self: baseline;
+}
+.meta-list dd {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text);
+  text-align: right;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.meta-list dd.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--accent);
+}
+
+/* --- Vertical timeline rail -------------------------------------------- */
+.timeline-rail {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 18px;
+  position: relative;
+  border-left: 2px solid var(--border);
+}
+.timeline-rail li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 12px;
+  padding: 0 0 14px;
+  font-size: 0.85rem;
+}
+.timeline-rail li::before {
+  content: "";
+  position: absolute;
+  left: -25px;
+  top: 5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  box-shadow: 0 0 0 3px var(--bg);
+}
+.timeline-rail li.is-current::before {
+  background: var(--accent);
+}
+.timeline-rail li.is-current .tl-action {
+  color: var(--text);
+  font-weight: 600;
+}
+.timeline-rail .tl-date {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Roll-call vote tally + member chips ------------------------------- */
+.vote-tally {
+  margin: 8px 0 0;
+}
+.vote-bar {
+  display: flex;
+  height: 12px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+.vote-seg {
+  height: 100%;
+}
+.vote-seg.yea {
+  background: var(--ok);
+}
+.vote-seg.nay {
+  background: var(--danger);
+}
+.vote-seg.abstain {
+  background: var(--muted);
+}
+.vote-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.vote-dissent {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.member-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  font-size: 0.8rem;
+}
+.member-chip:hover {
+  border-color: var(--border-hover);
+  text-decoration: none;
+}
+
+/* --- Response block: answer bound to its sources ----------------------- */
+.response {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow);
+}
+.response .answer {
+  margin-bottom: 0;
+}
+.source-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0 12px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+.source-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* --- Grounding pill: evidence-strength signal -------------------------- */
+.grounding-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: var(--muted-soft);
+  font-variant-numeric: tabular-nums;
+}
+.grounding-pill.is-strong {
+  color: var(--ok);
+  border-color: rgba(87, 217, 163, 0.35);
+  background: var(--ok-soft);
+}
+
+/* --- Refusal as a first-class calm state (never red) ------------------- */
+.refusal-card {
+  border-left: 3px solid var(--border);
+  padding: 4px 0 4px 16px;
+}
+.refusal-eyebrow {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+.refusal-card .answer {
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.refusal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* --- No-content variants: empty (by design) vs error (retryable) ------- */
+.empty-state {
+  text-align: center;
+  padding: 44px 24px;
+}
+.empty-state-title {
+  font-size: 0.98rem;
+  color: var(--text);
+  margin: 0 0 6px;
+}
+.empty-state-help {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0 0 16px;
+}
+.empty-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+.error-state {
+  border-left: 3px solid var(--danger);
+  background: var(--danger-soft);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.error-state-msg {
+  color: var(--danger);
+  font-size: 0.9rem;
+  margin: 0 0 10px;
+}
+
+/* --- Toolbar + applied-filter chips ------------------------------------ */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: var(--space-5);
+}
+.toolbar-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 var(--space-4);
+}
+
+/* --- Two-column categorical breakdown ---------------------------------- */
+.breakdown-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+/* --- Detail layout collapses to one column below 1024px --------------- */
+@media (max-width: 1024px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+  .detail-side {
+    position: static;
+  }
+}
+
+/* --- Paired breakdowns stack below 720px ------------------------------- */
+@media (max-width: 720px) {
+  .breakdown-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* --- Mobile: single-column, full-width, tappable nav (<=640px) ---------- */
 @media (max-width: 640px) {
   /* Full-width content with a small gutter. */
@@ -912,6 +1489,57 @@ button:disabled {
   /* Compare two-column layout collapses to one. */
   .compare-grid {
     grid-template-columns: 1fr;
+  }
+
+  /* Wide container gets the same tight gutter as .container. */
+  .container-wide {
+    padding: 28px 16px 64px;
+  }
+
+  /* Hero scales down; stats tighten. */
+  .hero h1 {
+    font-size: 1.75rem;
+  }
+  .hero .lede {
+    font-size: 1rem;
+  }
+  .hero-stats {
+    gap: 14px 28px;
+  }
+
+  /* Data rows drop to a single stacked column, meta left-aligns. */
+  .data-row {
+    grid-template-columns: 1fr;
+  }
+  .data-row-meta {
+    text-align: left;
+    white-space: normal;
+  }
+
+  /* KPI tiles: comfortable minimum so they stack rather than crush. */
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Stat chips stack for readability. */
+  .stat-chips {
+    gap: 14px 24px;
+  }
+
+  /* Meta list keys/values stack so long values don't crowd the label. */
+  .meta-list dd {
+    text-align: left;
+  }
+
+  /* Timeline rail: narrower date column. */
+  .timeline-rail li {
+    grid-template-columns: 74px 1fr;
+    gap: 8px;
+  }
+
+  /* Response block tightens its padding on small screens. */
+  .response {
+    padding: 16px;
   }
 }
 

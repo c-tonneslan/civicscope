@@ -108,31 +108,32 @@ export default function InsightsPanel({ jurisdiction = "" }: { jurisdiction?: st
       <p className="eyebrow">Docket · Insights</p>
       <div className="panel">
         {overview && typeof overview.total_documents === "number" && (
-          <div className="stats">
-            <div className="stat">
-              <span className="stat-num">{overview.total_documents.toLocaleString()}</span>
-              <span className="stat-label">bills &amp; resolutions</span>
+          <div className="kpi-grid">
+            <div className="kpi">
+              <span className="kpi-label">Bills &amp; resolutions</span>
+              <span className="kpi-num">{overview.total_documents.toLocaleString()}</span>
             </div>
             {overview.earliest_intro_date && overview.latest_intro_date && (
-              <div className="stat">
-                <span className="stat-num">
+              <div className="kpi">
+                <span className="kpi-label">Introduced-date span</span>
+                <span className="kpi-num" style={{ fontSize: "1.15rem" }}>
                   {overview.earliest_intro_date} → {overview.latest_intro_date}
                 </span>
-                <span className="stat-label">introduced-date span</span>
               </div>
             )}
-            <div className="stat">
-              <span className="stat-num">
+            <div className="kpi">
+              <span className="kpi-label">Top statuses</span>
+              <span className="kpi-num" style={{ fontSize: "1.05rem", lineHeight: 1.3 }}>
                 {overview.by_status.slice(0, 3).map((s) => `${s.label} ${s.count}`).join(" · ")}
               </span>
-              <span className="stat-label">top statuses</span>
             </div>
             {velocity && velocity.avg_days_to_enact != null && (
-              <div className="stat">
-                <span className="stat-num">
-                  ~{velocity.avg_days_to_enact} days · {velocity.enacted.toLocaleString()} enacted
+              <div className="kpi">
+                <span className="kpi-label">Avg time to enact</span>
+                <span className="kpi-num">~{velocity.avg_days_to_enact} days</span>
+                <span className="kpi-context">
+                  {velocity.enacted.toLocaleString()} enacted
                 </span>
-                <span className="stat-label">avg time to enact</span>
               </div>
             )}
           </div>
@@ -140,10 +141,12 @@ export default function InsightsPanel({ jurisdiction = "" }: { jurisdiction?: st
 
         {topics && topics.length > 0 && (
           <>
-            <p className="section-title">
-              Legislative activity by topic{" "}
-              <span className="hint">— click a topic for an advisory briefing</span>
-            </p>
+            <div className="section-head">
+              <p className="section-head-title">Legislative activity by topic</p>
+              <p className="section-head-caption">
+                Click a topic for an advisory briefing
+              </p>
+            </div>
             <ul className="bars">
               {topics.map((t) => (
                 <li key={t.topic}>
@@ -182,23 +185,30 @@ export default function InsightsPanel({ jurisdiction = "" }: { jurisdiction?: st
 
         {briefTopic && (
           <div className="brief">
-            <p className="section-title">
-              Briefing: {briefTopic}
-              {brief && !brief.refused ? ` · ${brief.matched_bills} matching bills` : ""}
-            </p>
+            <div className="section-head">
+              <p className="section-head-title">Briefing: {briefTopic}</p>
+              {brief && !brief.refused && (
+                <p className="section-head-caption">
+                  {brief.matched_bills} matching bills
+                </p>
+              )}
+            </div>
             {briefLoading && <p className="note">Analyzing legislation…</p>}
             {!briefLoading && !brief && (
               <p className="note status-err">Couldn&apos;t generate a briefing.</p>
             )}
             {!briefLoading && brief && (
-              <>
+              <div className={brief.refused ? undefined : "response"}>
                 <p className={`answer${brief.refused ? " refusal" : ""}`}>
                   {brief.briefing}
                 </p>
                 {!brief.refused && brief.citations.length > 0 && (
-                  <CitationList citations={brief.citations} jurisdiction={jurisdiction} />
+                  <>
+                    <p className="source-divider">Sources</p>
+                    <CitationList citations={brief.citations} jurisdiction={jurisdiction} />
+                  </>
                 )}
-              </>
+              </div>
             )}
             {!briefLoading && sponsors.length > 0 && (
               <div className="sponsors">

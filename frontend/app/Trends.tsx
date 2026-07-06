@@ -14,12 +14,22 @@ export function Sparkline({ series }: { series: number[] }) {
   const w = 150;
   const h = 26;
   const max = Math.max(...series, 1);
-  const pts = series
-    .map((v, i) => `${(i / (series.length - 1)) * w},${h - (v / max) * (h - 2) - 1}`)
-    .join(" ");
+  const y = (v: number) => h - (v / max) * (h - 2) - 1;
+  const pts = series.map((v, i) => `${(i / (series.length - 1)) * w},${y(v)}`).join(" ");
+  const firstVal = series[0];
+  const lastVal = series[series.length - 1];
   return (
-    <svg className="spark" width={w} height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+    <svg
+      className="spark"
+      width={w}
+      height={h}
+      viewBox={`0 0 ${w} ${h}`}
+      preserveAspectRatio="none"
+      role="img"
+      aria-label={`Trend from ${firstVal} to ${lastVal} bills per year`}
+    >
       <polyline points={pts} fill="none" stroke="var(--accent)" strokeWidth="1.5" />
+      <circle cx={w} cy={y(lastVal)} r={2} fill="var(--accent)" />
     </svg>
   );
 }
@@ -53,9 +63,12 @@ export default function Trends({
 
   return (
     <div className={panel ? "panel trends" : "trends"}>
-      <p className="section-title">
-        Topic activity over time <span className="hint">— {first}–{last} (bills/year)</span>
-      </p>
+      <div className="section-head">
+        <p className="section-head-title">How Council&apos;s attention has shifted by topic</p>
+        <p className="section-head-caption">
+          {first}–{last} · bills introduced per year
+        </p>
+      </div>
       <ul className="trend-list">
         {data.topics.map((t) => (
           <li key={t.topic} className="trend-row">
