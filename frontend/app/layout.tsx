@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Nav from "./Nav";
 
 export const metadata: Metadata = {
   title: "civicscope — ask about Philadelphia legislation",
@@ -14,7 +15,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Nav />
+        <div className="app-body">{children}</div>
+      </body>
     </html>
   );
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import CitationList from "./CitationList";
@@ -135,20 +134,31 @@ export default function Home() {
 
   return (
     <main className="container">
-      <p className="eyebrow">
-        civicscope · Ask · <Link href="/browse">Browse all bills</Link>
-      </p>
+      <p className="eyebrow">civicscope</p>
       <h1>Ask about Philadelphia City Council legislation</h1>
       <p className="lede">
-        Answers are grounded in the real Philadelphia City Council records with
-        citations, or civicscope refuses when the data doesn&apos;t support one.
+        Grounded, cited answers across years of Philadelphia City Council
+        records — or an honest refusal when the data doesn&apos;t support one.
       </p>
 
-      <Watchlist jurisdiction={jurisdiction} />
+      <section className="home-section">
+        <h2 className="home-section-title">Your watchlist</h2>
+        <p className="home-section-sub">Topics you&apos;re tracking, at a glance.</p>
+        <Watchlist jurisdiction={jurisdiction} />
+      </section>
 
-      <Digest jurisdiction={jurisdiction} />
+      <section className="home-section">
+        <h2 className="home-section-title">This week&apos;s digest</h2>
+        <p className="home-section-sub">What moved recently in Council.</p>
+        <Digest jurisdiction={jurisdiction} />
+      </section>
 
-      <div className="panel">
+      <section className="home-section">
+        <h2 className="home-section-title">Ask a question</h2>
+        <p className="home-section-sub">
+          Plain-English questions answered from the record, with citations.
+        </p>
+        <div className="panel">
         {jurisdictions.length > 1 && (
           <div className="jz-row">
             <label htmlFor="jurisdiction">City</label>
@@ -243,8 +253,11 @@ export default function Home() {
           </div>
         </section>
       )}
+      </section>
 
-      <InsightsPanel jurisdiction={jurisdiction} />
+      <section className="home-section">
+        <InsightsPanel jurisdiction={jurisdiction} />
+      </section>
     </main>
   );
 }
