@@ -201,7 +201,10 @@ function AnalyticsView() {
         )}
       </div>
 
-      {(months.length > 0 || sponsors.length > 0) && (
+      {(months.length > 0 ||
+        sponsors.length > 0 ||
+        overview.by_status.length > 0 ||
+        overview.by_type.length > 0) && (
         <div className="detail-grid">
           <div className="detail-main">
             {months.length > 0 && (
@@ -232,6 +235,23 @@ function AnalyticsView() {
                 </ul>
               </div>
             )}
+
+            {overview.by_status.length > 0 && (
+              <div
+                className="panel"
+                style={{ marginTop: months.length > 0 ? 24 : 0 }}
+              >
+                <p className="section-title">Status breakdown</p>
+                <BarBreakdown items={overview.by_status} />
+              </div>
+            )}
+
+            {overview.by_type.length > 0 && (
+              <div className="panel" style={{ marginTop: 24 }}>
+                <p className="section-title">Document types</p>
+                <BarBreakdown items={overview.by_type} />
+              </div>
+            )}
           </div>
 
           <aside className="detail-side">
@@ -256,32 +276,12 @@ function AnalyticsView() {
                 </ul>
               </div>
             )}
+            <div style={{ marginTop: sponsors.length > 0 ? 24 : 0 }}>
+              <Trends jurisdiction={jurisdiction} panel />
+            </div>
           </aside>
         </div>
       )}
-
-      <div className="breakdown-2">
-        <div>
-          <Trends jurisdiction={jurisdiction} panel />
-        </div>
-        {(overview.by_status.length > 0 || overview.by_type.length > 0) && (
-          <div style={{ display: "grid", gap: "var(--space-4)" }}>
-            {overview.by_status.length > 0 && (
-              <div className="panel">
-                <p className="section-title">Status breakdown</p>
-                <BarBreakdown items={overview.by_status} />
-              </div>
-            )}
-
-            {overview.by_type.length > 0 && (
-              <div className="panel">
-                <p className="section-title">Document types</p>
-                <BarBreakdown items={overview.by_type} />
-              </div>
-            )}
-          </div>
-        )}
-      </div>
 
       <p className="note" style={{ marginTop: 24 }}>
         <Link href="/">← Ask</Link>

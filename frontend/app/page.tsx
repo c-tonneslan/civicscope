@@ -327,11 +327,13 @@ function HomeInner() {
             )}
           </div>
         )}
+          <div style={{ marginTop: 32 }}>
+            <Watchlist jurisdiction={jurisdiction} />
+          </div>
         </section>
 
         <aside className="hero-aside">
           <Digest jurisdiction={jurisdiction} />
-          <Watchlist jurisdiction={jurisdiction} />
         </aside>
       </div>
 
