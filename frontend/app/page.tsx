@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import CitationList from "./CitationList";
 import Digest from "./Digest";
@@ -36,7 +37,9 @@ const EXAMPLES = [
 
 type Jurisdiction = { slug: string; documents: number };
 
-export default function Home() {
+function HomeInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,9 +62,23 @@ export default function Home() {
     };
   }, []);
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!question.trim()) return;
+  const didInit = useRef(false);
+
+  // Rewrite the URL query so the address bar reproduces the asked question.
+  // Same route ('/'), query-only change → App Router does a shallow client
+  // transition that keeps HomeInner mounted and the in-flight stream alive.
+  function syncUrl(q: string, jz: string) {
+    const params = new URLSearchParams();
+    if (q.trim()) params.set("q", q);
+    if (jz) params.set("jurisdiction", jz);
+    const qs = params.toString();
+    router.replace(qs ? `/?${qs}` : "/", { scroll: false });
+  }
+
+  // Core ask, parameterized so the mount-time auto-submit can pass URL-derived
+  // values directly and avoid a stale-closure race with un-flushed state.
+  async function runAsk(q: string, jz: string) {
+    if (!q.trim()) return;
     setLoading(true);
     setError(null);
     setResult(null);
@@ -71,8 +88,8 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          question,
-          jurisdiction: jurisdiction || null,
+          question: q,
+          jurisdiction: jz || null,
         }),
       });
       if (!res.ok || !res.body) {
@@ -131,6 +148,26 @@ export default function Home() {
       setLoading(false);
     }
   }
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    syncUrl(question, jurisdiction);
+    await runAsk(question, jurisdiction);
+  }
+
+  // One-shot: pre-fill + auto-submit from ?q= / ?jurisdiction= on first mount.
+  useEffect(() => {
+    if (didInit.current) return;
+    didInit.current = true;
+    const urlQ = searchParams.get("q") ?? "";
+    const urlJz = searchParams.get("jurisdiction") ?? "";
+    if (urlJz) setJurisdiction(urlJz);
+    if (urlQ.trim()) {
+      setQuestion(urlQ);
+      void runAsk(urlQ, urlJz);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount only
+  }, []);
 
   return (
     <main className="container">
@@ -259,5 +296,13 @@ export default function Home() {
         <InsightsPanel jurisdiction={jurisdiction} />
       </section>
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <HomeInner />
+    </Suspense>
   );
 }
