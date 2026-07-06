@@ -13,6 +13,8 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
+import secrets
 import time
 
 from argon2 import PasswordHasher
@@ -20,6 +22,22 @@ from argon2 import PasswordHasher
 from app.config import settings
 
 _hasher = PasswordHasher()
+
+# The placeholder value config ships with; treated as "no real secret set".
+_DEFAULT_SECRET = "dev-only-change-me"
+
+# Resolve the signing key once. If AUTH_SECRET wasn't configured we use a random
+# per-process key instead of the well-known default, so tokens can't be forged
+# with a public string. The trade-off is that sessions don't survive a restart
+# until a real AUTH_SECRET is set.
+if settings.auth_secret and settings.auth_secret != _DEFAULT_SECRET:
+    _SECRET = settings.auth_secret
+else:
+    _SECRET = secrets.token_hex(32)
+    logging.getLogger("civicscope").warning(
+        "AUTH_SECRET is not set; using an ephemeral key. Sessions will not "
+        "survive a restart. Set AUTH_SECRET for a persistent, deployable signing key."
+    )
 
 # How long a session token stays valid.
 TOKEN_TTL_SECONDS = 7 * 24 * 3600
@@ -49,7 +67,7 @@ def _b64decode(s: str) -> bytes:
 
 
 def _sign(body: str) -> str:
-    mac = hmac.new(settings.auth_secret.encode(), body.encode(), hashlib.sha256)
+    mac = hmac.new(_SECRET.encode(), body.encode(), hashlib.sha256)
     return _b64encode(mac.digest())
 
 

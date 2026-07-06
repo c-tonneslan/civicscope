@@ -57,7 +57,7 @@ export default function AccountPage() {
   }
 
   return (
-    <main>
+    <main className="container">
       <section style={{ marginTop: 24 }}>
         <p className="eyebrow">
           civicscope · {mode === "login" ? "Sign in" : "Create account"}
