@@ -248,6 +248,15 @@ class MemberRecordResponse(BaseModel):
     record: list[MemberRecordItem]
 
 
+class MemberActivityResponse(BaseModel):
+    """Body of ``GET /civic/insights/member-activity`` — a member's sponsored bills per year."""
+
+    person: str
+    jurisdiction: str | None
+    years: list[int]
+    series: list[int]
+
+
 class SponsorItem(BaseModel):
     """One sponsor and how many bills they sponsored under the query scope."""
 

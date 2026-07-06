@@ -171,6 +171,39 @@ def topic_trends(jurisdiction: str | None = None) -> dict:
     }
 
 
+def member_activity(person: str, jurisdiction: str | None = None) -> dict:
+    """A member's sponsored bills BY YEAR — topic_trends over sponsorship.
+
+    One query over the civic_sponsors -> civic_documents join keyed on the sponsor
+    name. Returns a dense year axis (every year from first to last, zero-filled) so
+    the client renders it with the same series logic trends use.
+    """
+
+    clause = "" if jurisdiction is None else "AND d.jurisdiction = %s"
+    params = (person,) if jurisdiction is None else (person, jurisdiction)
+
+    with get_conn() as conn, conn.cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT EXTRACT(YEAR FROM d.intro_date)::int AS yr, count(DISTINCT d.id)
+            FROM civic_documents d
+            JOIN civic_sponsors s ON d.id = s.document_id
+            WHERE s.name = %s AND d.intro_date IS NOT NULL {clause}
+            GROUP BY yr ORDER BY yr;
+            """,
+            params,
+        )
+        counts = {yr: n for yr, n in cur.fetchall()}
+
+    axis = list(range(min(counts), max(counts) + 1)) if counts else []
+    return {
+        "person": person,
+        "jurisdiction": jurisdiction,
+        "years": axis,
+        "series": [counts.get(y, 0) for y in axis],
+    }
+
+
 def top_sponsors(
     topic: str | None = None,
     jurisdiction: str | None = None,
