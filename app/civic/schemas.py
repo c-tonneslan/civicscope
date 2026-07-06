@@ -107,6 +107,47 @@ class AskRequest(BaseModel):
         return stripped
 
 
+class SignupRequest(BaseModel):
+    """Body of ``POST /civic/auth/signup``."""
+
+    email: str = Field(..., min_length=3, max_length=254)
+    password: str = Field(..., min_length=8, max_length=200)
+
+    @field_validator("email")
+    @classmethod
+    def _normalize_email(cls, v: str) -> str:
+        v = v.strip().lower()
+        local, _, domain = v.partition("@")
+        if not local or "." not in domain:
+            raise ValueError("invalid email address")
+        return v
+
+
+class LoginRequest(BaseModel):
+    """Body of ``POST /civic/auth/login``."""
+
+    email: str = Field(..., min_length=3, max_length=254)
+    password: str = Field(..., min_length=1, max_length=200)
+
+    @field_validator("email")
+    @classmethod
+    def _lower(cls, v: str) -> str:
+        return v.strip().lower()
+
+
+class TokenResponse(BaseModel):
+    """A signed session token."""
+
+    token: str
+
+
+class UserResponse(BaseModel):
+    """The authenticated user."""
+
+    id: int
+    email: str
+
+
 class Citation(BaseModel):
     """One verified citation returned in an answer."""
 
