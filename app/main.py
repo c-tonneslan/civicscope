@@ -55,6 +55,7 @@ from app.civic.routers import (
     jurisdictions as civic_jurisdictions,
     bills as civic_bills,
     auth as civic_auth,
+    watchlist as civic_watchlist,
 )
 
 app.include_router(civic_ingest.router)         # POST /civic/ingest
@@ -65,6 +66,7 @@ app.include_router(civic_digest.router)         # GET  /civic/insights/recent
 app.include_router(civic_jurisdictions.router)  # GET  /civic/jurisdictions
 app.include_router(civic_bills.router)          # GET  /civic/bills
 app.include_router(civic_auth.router)           # POST /civic/auth/{signup,login}, GET /me
+app.include_router(civic_watchlist.router)      # GET/POST/DELETE /civic/watchlist
 # --------------------------------------------------------------------------
 
 @app.get("/health")

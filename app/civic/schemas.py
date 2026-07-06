@@ -148,6 +148,27 @@ class UserResponse(BaseModel):
     email: str
 
 
+class WatchlistResponse(BaseModel):
+    """The caller's tracked topics."""
+
+    topics: list[str]
+
+
+class WatchlistAddRequest(BaseModel):
+    """Body of ``POST /civic/watchlist``."""
+
+    topic: str = Field(..., min_length=1, max_length=120)
+
+    @field_validator("topic")
+    @classmethod
+    def _strip_and_require_nonblank(cls, v: str) -> str:
+        # Strip and reject blanks so a whitespace-only body can't create an empty row.
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("topic must not be blank")
+        return stripped
+
+
 class Citation(BaseModel):
     """One verified citation returned in an answer."""
 

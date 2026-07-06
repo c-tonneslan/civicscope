@@ -222,6 +222,17 @@ _DDL_STATEMENTS = [
         created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     """,
+    # 10. Per-user watchlist of tracked topics. CASCADE-deleted with the account;
+    #     UNIQUE(user_id, topic) makes add idempotent via ON CONFLICT DO NOTHING.
+    """
+    CREATE TABLE IF NOT EXISTS civic_watchlist (
+        id         BIGSERIAL PRIMARY KEY,
+        user_id    BIGINT NOT NULL REFERENCES civic_users(id) ON DELETE CASCADE,
+        topic      TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        UNIQUE (user_id, topic)
+    );
+    """,
 ]
 
 
@@ -425,3 +436,42 @@ def get_user_by_id(conn, user_id: int):
     with conn.cursor() as cur:
         cur.execute("SELECT id, email FROM civic_users WHERE id = %s;", (user_id,))
         return cur.fetchone()
+
+
+# ---------------------------------------------------------------------------
+# Watchlists
+# ---------------------------------------------------------------------------
+
+
+def list_watchlist(conn, user_id: int) -> list[str]:
+    """Return the user's tracked topics, oldest first."""
+
+    with conn.cursor() as cur:
+        # Tie-break on id so two topics added in the same now() tick stay ordered.
+        cur.execute(
+            "SELECT topic FROM civic_watchlist WHERE user_id = %s "
+            "ORDER BY created_at, id;",
+            (user_id,),
+        )
+        return [row[0] for row in cur.fetchall()]
+
+
+def add_watchlist(conn, user_id: int, topic: str) -> None:
+    """Add a topic to the user's watchlist; a duplicate is a no-op."""
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO civic_watchlist (user_id, topic) VALUES (%s, %s) "
+            "ON CONFLICT (user_id, topic) DO NOTHING;",
+            (user_id, topic),
+        )
+
+
+def remove_watchlist(conn, user_id: int, topic: str) -> None:
+    """Remove a topic from the user's watchlist; absent is a no-op."""
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "DELETE FROM civic_watchlist WHERE user_id = %s AND topic = %s;",
+            (user_id, topic),
+        )

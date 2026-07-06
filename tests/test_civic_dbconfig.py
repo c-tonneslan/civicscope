@@ -290,6 +290,9 @@ def test_ddl_first_statement_enables_vector_extension():
         "create table if not exists civic_votes",
         "create index if not exists civic_votes_person_idx",
         "create table if not exists civic_users",
+        "create table if not exists civic_watchlist",
+        "user_id bigint not null references civic_users(id) on delete cascade",
+        "unique (user_id, topic)",
     ],
 )
 def test_ddl_declares_expected_object(needle):
@@ -331,8 +334,8 @@ def test_ddl_has_expected_statement_count():
     # extension + documents table + 3 migration stmts (add col, drop old constraint,
     # add composite constraint) + jurisdiction index + chunks table + 2 chunk
     # indexes + sponsors table + 2 sponsor indexes + history table + 2 history
-    # indexes + votes table + 2 vote indexes + users table.
-    assert len(db._DDL_STATEMENTS) == 19
+    # indexes + votes table + 2 vote indexes + users table + watchlist table.
+    assert len(db._DDL_STATEMENTS) == 20
 
 
 def test_tsv_generated_from_text_with_english_config():
