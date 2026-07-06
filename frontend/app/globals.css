@@ -681,7 +681,93 @@ button:disabled {
   font-size: 0.9rem;
   margin: 0 0 12px;
 }
+/* --- Mobile: single-column, full-width, tappable nav (<=640px) ---------- */
 @media (max-width: 640px) {
+  /* Full-width content with a small gutter. */
+  .container {
+    padding: 28px 16px 64px;
+  }
+  .nav-inner {
+    padding: 10px 16px;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+  }
+  .nav-links {
+    gap: 16px;
+  }
+  .nav-links a {
+    font-size: 0.95rem;
+    padding: 2px 0;
+  }
+
+  /* Type / hero scale-down. */
+  h1 {
+    font-size: 1.5rem;
+  }
+  .lede {
+    font-size: 1rem;
+    margin-bottom: 24px;
+  }
+  .panel {
+    padding: 16px;
+  }
+  .home-section {
+    margin-top: 32px;
+  }
+
+  /* Long titles wrap instead of overflowing fixed-width panels. */
+  .bill-row-title,
+  .cite-title,
+  .sponsor-name,
+  .coverage-jz li,
+  .stat-num,
+  .bar-label,
+  .trend-label {
+    overflow-wrap: anywhere;
+  }
+
+  /* Stat cards stack cleanly. */
+  .stats {
+    flex-direction: column;
+    gap: 14px 0;
+  }
+
+  /* Tighten the three-column bar/trend grids so they fit ~375px. */
+  .bar-row,
+  .trend-row {
+    grid-template-columns: 88px 1fr 34px;
+    gap: 8px;
+  }
+
+  /* Timeline rows: narrower date column. */
+  .timeline-list li {
+    grid-template-columns: 74px 1fr;
+    gap: 8px;
+  }
+
+  /* Browse / compare filters stack full-width. */
+  .browse-filters {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .browse-filters > div {
+    width: 100%;
+  }
+  .browse-filters input,
+  .browse-filters select {
+    width: 100%;
+  }
+
+  /* Jurisdiction/city selector wraps and fills the row. */
+  .jz-row {
+    flex-wrap: wrap;
+  }
+  .jz-row select {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Compare two-column layout collapses to one. */
   .compare-grid {
     grid-template-columns: 1fr;
   }
