@@ -280,13 +280,45 @@ function CompareView() {
               <CompareColumn label={b} count={countFor(b)} trends={trends} sponsors={sponsorsB} />
             </div>
           ) : (
-            <div className="empty-state">
-              <p className="empty-state-title">Pick two topics to compare</p>
-              <p className="empty-state-help">
-                Choose a topic in each column above to see their volume, activity over time, and top
-                sponsors side by side.
-              </p>
-            </div>
+            <section className="panel">
+              <div className="empty-state">
+                <p className="empty-state-title">Pick two topics to compare</p>
+                <p className="empty-state-help">
+                  Choose a topic in each column of the rail to put them side by side — total volume,
+                  activity over time, and the members driving each one.
+                </p>
+              </div>
+
+              <div className="compare-grid" style={{ marginTop: "var(--space-5)" }}>
+                <div className="panel compare-col" aria-hidden>
+                  <p className="section-title">Topic A</p>
+                  <p className="note">
+                    Total bills, a year-by-year activity sparkline, and the top five sponsors — ready
+                    once you choose a topic.
+                  </p>
+                </div>
+                <div className="panel compare-col" aria-hidden>
+                  <p className="section-title">Topic B</p>
+                  <p className="note">
+                    The same breakdown for a second topic, laid out beside the first so the contrast
+                    is easy to read.
+                  </p>
+                </div>
+              </div>
+
+              {topics.length > 0 && (
+                <p className="note" style={{ marginTop: "var(--space-5)" }}>
+                  Busiest right now: <strong>{topics[0].topic}</strong>
+                  {topics[1] ? (
+                    <>
+                      {" "}
+                      and <strong>{topics[1].topic}</strong>
+                    </>
+                  ) : null}
+                  .
+                </p>
+              )}
+            </section>
           )}
         </div>
       </div>

@@ -174,7 +174,8 @@ function HomeInner() {
 
   return (
     <main className="container-app">
-      <section className="hero" style={{ maxWidth: 860 }}>
+      <div className="hero-split">
+        <section className="hero">
         <p className="eyebrow">Docket</p>
         <h1>Answers about Philadelphia legislation you can actually cite.</h1>
         <p className="lede">
@@ -326,16 +327,16 @@ function HomeInner() {
             )}
           </div>
         )}
-      </section>
+        </section>
 
-      <div className="app-grid" style={{ marginTop: 48 }}>
-        <div className="detail-main">
-          <InsightsPanel jurisdiction={jurisdiction} />
-        </div>
-        <aside className="app-rail">
+        <aside className="hero-aside">
           <Digest jurisdiction={jurisdiction} />
           <Watchlist jurisdiction={jurisdiction} />
         </aside>
+      </div>
+
+      <div style={{ marginTop: 48 }}>
+        <InsightsPanel jurisdiction={jurisdiction} />
       </div>
     </main>
   );

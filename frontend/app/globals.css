@@ -21,7 +21,7 @@
   /* content widths — THREE tiers now */
   --measure-prose: 700px; /* readable running text: answer body, about/step copy (~68ch) */
   --measure-wide: 1080px; /* KEEP for narrow prose-plus pages if referenced; superseded by app */
-  --measure-app: 1280px; /* the dashboard/app frame (range 1200–1360; 1280 default) */
+  --measure-app: min(1680px, 94vw); /* fluid dashboard/app frame: fills large monitors, keeps ~6vw gutters */
 
   /* 4px spacing scale (reference these instead of raw px going forward) */
   --space-1: 4px;
@@ -1397,10 +1397,28 @@ button:disabled {
    WIDTH SYSTEM — grid utilities for the horizontal app layout (additive)
    ====================================================================== */
 
+/* --- Home hero band: ask column + supporting aside --------------------- */
+/* Two-column hero so the ask box + intro sit left while the right column
+   (stats, digest, quick links) fills the frame instead of leaving a void.
+   minmax(0, …) on both tracks lets each side shrink so long content wraps
+   inside its column rather than blowing the grid out. */
+.hero-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 40px;
+  align-items: start;
+}
+.hero-aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
 /* --- Home main + sticky rail ------------------------------------------- */
 .app-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-columns: minmax(0, 1fr) 360px;
   gap: var(--space-5);
   align-items: start;
 }
@@ -1415,7 +1433,7 @@ button:disabled {
 /* --- Browse: filter rail (left) + results (right) ---------------------- */
 .browse-grid {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-columns: 320px minmax(0, 1fr);
   gap: var(--space-5);
   align-items: start;
 }
@@ -1501,6 +1519,14 @@ button:disabled {
   }
   .compare-rail {
     position: static;
+  }
+}
+
+/* --- Home hero collapses to one stacked, full-width column below 900px -- */
+@media (max-width: 900px) {
+  .hero-split {
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
   }
 }
 

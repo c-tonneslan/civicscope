@@ -75,25 +75,27 @@ export default function AboutPage() {
 
       <div className="detail-grid">
         <div className="detail-main">
-          <div className="panel">
-            <p className="section-title">What it is</p>
-            <p className="answer prose">
-              Ask a plain-English question about local legislation and Docket
-              answers from the actual bill text, with citations you can open and
-              read for yourself. When the records don&apos;t support a confident
-              answer, it refuses rather than guessing — the goal is trust, not
-              the appearance of one.
-            </p>
-          </div>
+          <div className="detail-modules">
+            <div className="panel">
+              <p className="section-title">What it is</p>
+              <p className="answer prose">
+                Ask a plain-English question about local legislation and Docket
+                answers from the actual bill text, with citations you can open
+                and read for yourself. When the records don&apos;t support a
+                confident answer, it refuses rather than guessing — the goal is
+                trust, not the appearance of one.
+              </p>
+            </div>
 
-          <div className="panel" style={{ marginTop: "var(--space-5)" }}>
-            <p className="section-title">How it works</p>
-            <ol className="steps">
-              <li>Ingest bill text from the Legistar public API.</li>
-              <li>Retrieve the relevant passages with a hybrid dense + lexical search.</li>
-              <li>Synthesize a cite-or-refuse answer with a local LLM.</li>
-              <li>Enrich each bill with its sponsors, timeline, and roll-call votes.</li>
-            </ol>
+            <div className="panel">
+              <p className="section-title">How it works</p>
+              <ol className="steps">
+                <li>Ingest bill text from the Legistar public API.</li>
+                <li>Retrieve the relevant passages with a hybrid dense + lexical search.</li>
+                <li>Synthesize a cite-or-refuse answer with a local LLM.</li>
+                <li>Enrich each bill with its sponsors, timeline, and roll-call votes.</li>
+              </ol>
+            </div>
           </div>
         </div>
 

@@ -96,6 +96,17 @@ export default function Browse() {
     };
   }, []);
 
+  // Load the first page of legislation on mount so the wide results column is
+  // populated immediately instead of sitting blank until the user submits.
+  // Reuses the existing fetch path (runQuery) with the default (empty) filters;
+  // runs exactly once. eslint-disable is intentional — runQuery reads current
+  // filters from closure and we only want the initial default load here.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    runQuery(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Shared by the filter form and the Prev/Next buttons. Reads the current
   // filters from closure and pages via an explicit offset so the buttons can
   // step without touching the filters. Offset is only committed on success.
