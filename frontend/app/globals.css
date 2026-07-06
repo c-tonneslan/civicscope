@@ -37,7 +37,59 @@ a:hover {
 .container {
   max-width: 720px;
   margin: 0 auto;
-  padding: 64px 24px 96px;
+  padding: 48px 24px 96px;
+}
+
+/* --- Shared top nav ---------------------------------------------------- */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.nav-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.nav-brand {
+  color: var(--text);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.nav-brand:hover {
+  text-decoration: none;
+  color: var(--text);
+}
+.nav-links {
+  display: flex;
+  gap: 20px;
+}
+.nav-links a {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.nav-links a:hover {
+  color: var(--text);
+  text-decoration: none;
+}
+
+/* --- Home page sections ------------------------------------------------ */
+.home-section {
+  margin-top: 48px;
+}
+.home-section-title {
+  font-size: 1.15rem;
+  margin: 0 0 4px;
+}
+.home-section-sub {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0 0 16px;
 }
 
 .eyebrow {
