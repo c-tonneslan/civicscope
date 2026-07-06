@@ -1,0 +1,774 @@
+:root {
+  --bg: #0b1220;
+  --panel: #131c2e;
+  --border: #243049;
+  --text: #e7ecf5;
+  --muted: #9aa7bd;
+  --accent: #4f8cff;
+  --accent-hover: #3d77e6;
+  --danger: #ff8585;
+  --ok: #7ee0a8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+  line-height: 1.55;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 24px 96px;
+}
+
+/* --- Shared top nav ---------------------------------------------------- */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.nav-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.nav-brand {
+  color: var(--text);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.nav-brand:hover {
+  text-decoration: none;
+  color: var(--text);
+}
+.nav-links {
+  display: flex;
+  gap: 20px;
+}
+.nav-links a {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.nav-links a:hover {
+  color: var(--text);
+  text-decoration: none;
+}
+
+/* --- Home page sections ------------------------------------------------ */
+.home-section {
+  margin-top: 48px;
+}
+.home-section-title {
+  font-size: 1.15rem;
+  margin: 0 0 4px;
+}
+.home-section-sub {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0 0 16px;
+}
+
+.eyebrow {
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 16px;
+}
+
+h1 {
+  font-size: 2rem;
+  line-height: 1.25;
+  margin: 0 0 16px;
+}
+
+.lede {
+  color: var(--muted);
+  font-size: 1.05rem;
+  margin: 0 0 32px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+label {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+textarea {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.example-chip {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.example-chip:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--panel);
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 20px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.note {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 12px;
+}
+
+.status-err {
+  color: var(--danger);
+}
+
+.answer {
+  white-space: pre-wrap;
+  /* pre-wrap only breaks on whitespace; a single very long unbroken token in the
+     model output would overflow the fixed-width panel without this. */
+  overflow-wrap: anywhere;
+  margin: 0 0 20px;
+}
+
+.refusal {
+  border-left: 3px solid var(--border);
+  padding-left: 14px;
+  color: var(--muted);
+}
+
+.citations {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.citations li {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  /* A long unbroken citation title shouldn't overflow the panel. */
+  overflow-wrap: anywhere;
+}
+
+.cite-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.section-title {
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 24px 0 12px;
+}
+
+/* --- Insights panel ---------------------------------------------------- */
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 40px;
+  margin-bottom: 20px;
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stat-num {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+.stat-label {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.bars {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bar-row {
+  display: grid;
+  grid-template-columns: 130px 1fr 40px;
+  align-items: center;
+  gap: 12px;
+}
+.bar-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+.bar-track {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  height: 14px;
+  overflow: hidden;
+}
+.bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px 0 0 4px;
+}
+.bar-value {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  text-align: right;
+}
+
+/* --- Jurisdiction selector --------------------------------------------- */
+.jz-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.jz-row label {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.jz-row select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 14px;
+}
+.jz-row select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* --- Clickable topic bars + advisory brief ----------------------------- */
+.hint {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 12px;
+}
+.bar-button {
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  margin: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+.bar-button:hover:not(:disabled) {
+  background: var(--bg);
+}
+.bar-button:disabled {
+  cursor: default;
+}
+.bar-active {
+  background: var(--bg);
+}
+.bar-active .bar-fill {
+  background: var(--ok);
+}
+.brief {
+  margin-top: 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+/* --- Leading sponsors (in a brief) ------------------------------------- */
+.sponsors {
+  margin-top: 16px;
+}
+.sponsor-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sponsor-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 13px;
+}
+.sponsor-name {
+  color: var(--text);
+}
+.sponsor-count {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Clickable citations + bill timeline ------------------------------- */
+.cite-button {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  background: none;
+  border: none;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+}
+.cite-button:hover {
+  background: var(--bg);
+}
+/* The #file_no is a permalink; the title+toggle stay a button that expands the
+   inline timeline. Both are siblings in the row (never nested) to keep the DOM
+   valid, and the button carries the flex growth the old single button had. */
+.cite-open {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+.cite-title {
+  flex: 1;
+}
+.cite-toggle {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.timeline {
+  margin: 2px 0 10px 14px;
+  padding-left: 14px;
+  border-left: 2px solid var(--border);
+}
+.timeline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.timeline-list li {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 10px;
+  font-size: 13px;
+}
+.tl-date {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.tl-action {
+  color: var(--text);
+}
+
+/* --- Roll-call (in a bill's timeline) ---------------------------------- */
+.rollcall {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--text);
+}
+.rollcall-label {
+  color: var(--muted);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+.rollcall-dissent {
+  color: var(--danger);
+}
+
+/* --- Browse: filter controls + result rows ----------------------------- */
+.browse-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.browse-filters label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+.browse-filters input,
+.browse-filters select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 14px;
+}
+.browse-filters input:focus,
+.browse-filters select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.bill-row {
+  display: block;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+}
+.bill-row:hover {
+  border-color: var(--accent);
+  text-decoration: none;
+}
+.bill-row-title {
+  display: block;
+  font-size: 15px;
+}
+.bill-row-meta {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.browse-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+.btn-secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--panel);
+}
+
+/* --- Watchlist: tracked-topic input + per-topic headings --------------- */
+.wl-input-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.wl-input-row input {
+  flex: 1;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+.wl-input-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.wl-topic .section-title a {
+  color: var(--text);
+}
+.wl-remove {
+  margin-left: 8px;
+  padding: 0 6px;
+  line-height: 1;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1rem;
+}
+.wl-remove:hover {
+  color: var(--danger);
+}
+
+/* --- Topic trend sparklines -------------------------------------------- */
+.trends {
+  margin-top: 20px;
+}
+.trend-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.trend-row {
+  display: grid;
+  grid-template-columns: 130px 1fr 40px;
+  align-items: center;
+  gap: 12px;
+}
+.trend-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+.spark {
+  width: 100%;
+  height: 26px;
+  overflow: visible;
+}
+.trend-total {
+  font-size: 13px;
+  color: var(--text);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- About: how-it-works steps + coverage jurisdiction rows ------------- */
+.steps {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.steps li {
+  color: var(--text);
+  font-size: 14px;
+}
+.coverage-jz {
+  list-style: none;
+  margin: 8px 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.coverage-jz li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: 14px;
+}
+.coverage-jz-count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Compare: two-column topic comparison ----------------------------- */
+.compare-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 8px;
+}
+.compare-col {
+  min-width: 0; /* let grid children shrink so the sparkline/rows don't overflow */
+}
+.compare-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0 0 12px;
+}
+/* --- Mobile: single-column, full-width, tappable nav (<=640px) ---------- */
+@media (max-width: 640px) {
+  /* Full-width content with a small gutter. */
+  .container {
+    padding: 28px 16px 64px;
+  }
+  .nav-inner {
+    padding: 10px 16px;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+  }
+  .nav-links {
+    gap: 16px;
+  }
+  .nav-links a {
+    font-size: 0.95rem;
+    padding: 2px 0;
+  }
+
+  /* Type / hero scale-down. */
+  h1 {
+    font-size: 1.5rem;
+  }
+  .lede {
+    font-size: 1rem;
+    margin-bottom: 24px;
+  }
+  .panel {
+    padding: 16px;
+  }
+  .home-section {
+    margin-top: 32px;
+  }
+
+  /* Long titles wrap instead of overflowing fixed-width panels. */
+  .bill-row-title,
+  .cite-title,
+  .sponsor-name,
+  .coverage-jz li,
+  .stat-num,
+  .bar-label,
+  .trend-label {
+    overflow-wrap: anywhere;
+  }
+
+  /* Stat cards stack cleanly. */
+  .stats {
+    flex-direction: column;
+    gap: 14px 0;
+  }
+
+  /* Tighten the three-column bar/trend grids so they fit ~375px. */
+  .bar-row,
+  .trend-row {
+    grid-template-columns: 88px 1fr 34px;
+    gap: 8px;
+  }
+
+  /* Timeline rows: narrower date column. */
+  .timeline-list li {
+    grid-template-columns: 74px 1fr;
+    gap: 8px;
+  }
+
+  /* Browse / compare filters stack full-width. */
+  .browse-filters {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .browse-filters > div {
+    width: 100%;
+  }
+  .browse-filters input,
+  .browse-filters select {
+    width: 100%;
+  }
+
+  /* Jurisdiction/city selector wraps and fills the row. */
+  .jz-row {
+    flex-wrap: wrap;
+  }
+  .jz-row select {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Compare two-column layout collapses to one. */
+  .compare-grid {
+    grid-template-columns: 1fr;
+  }
+}

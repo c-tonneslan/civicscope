@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from app import db
 from app import schemas
 from contextlib import asynccontextmanager
@@ -16,9 +17,55 @@ async def lifespan(app: FastAPI):
     conn = db.get_database_connection()
     db.init_db(conn)
     yield
+    # Tear down the civic Postgres pool on shutdown. It spawns worker threads when
+    # opened lazily on first use; without this they leak (uvicorn logs "couldn't
+    # stop thread pool-1-worker-N"). close_pool() is idempotent — a no-op if the
+    # pool was never opened, so this stays safe for tests that never touch civic.
+    try:
+        from app.civic import db as civic_db
+        civic_db.close_pool()
+    except Exception:
+        pass
 
 app = FastAPI(lifespan=lifespan)
 ph = PasswordHasher()
+
+# CORS: the civicscope web UI runs on :3000 and calls this API on :8000, so the
+# browser needs the dev origin allowed for the POST /civic/ask fetch to succeed.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# --- Civic-intelligence slice (feat/civic-intel-slice) --------------------
+# Additive wiring for the civic RAG routers. These mount POST /civic/ingest and
+# POST /civic/ask alongside the existing tasks/auth/health routes above; they
+# share none of the SQLite tables or connections. The civic Postgres schema is
+# initialised lazily on first use by app.civic.db.init() (not in the SQLite
+# lifespan above), so importing/mounting these routers requires no live Postgres.
+from app.civic.routers import (
+    ingest as civic_ingest,
+    ask as civic_ask,
+    stream as civic_stream,
+    insights as civic_insights,
+    digest as civic_digest,
+    jurisdictions as civic_jurisdictions,
+    bills as civic_bills,
+    auth as civic_auth,
+)
+
+app.include_router(civic_ingest.router)         # POST /civic/ingest
+app.include_router(civic_ask.router)            # POST /civic/ask
+app.include_router(civic_stream.router)         # POST /civic/ask/stream
+app.include_router(civic_insights.router)       # GET  /civic/insights/{overview,topics}
+app.include_router(civic_digest.router)         # GET  /civic/insights/recent
+app.include_router(civic_jurisdictions.router)  # GET  /civic/jurisdictions
+app.include_router(civic_bills.router)          # GET  /civic/bills
+app.include_router(civic_auth.router)           # POST /civic/auth/{signup,login}, GET /me
+# --------------------------------------------------------------------------
 
 @app.get("/health")
 def get_health():

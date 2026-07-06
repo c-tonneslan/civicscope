@@ -1,0 +1,171 @@
+"""GET /civic/insights/* — read-only aggregate views over the civic corpus.
+
+Thin routers: they delegate to ``app.civic.insights`` (pure SQL aggregation, no
+LLM). Kept separate from the ask/ingest routers so the insight surface can grow
+without touching the grounded-answer path.
+"""
+
+from __future__ import annotations
+
+from datetime import date
+
+from fastapi import APIRouter
+
+from app.civic.schemas import (
+    BillSponsorsResponse,
+    BillTimelineResponse,
+    BriefResponse,
+    MemberActivityResponse,
+    MemberRecordResponse,
+    OverviewResponse,
+    RollCallResponse,
+    TrendsResponse,
+    SponsorsResponse,
+    TopicActivityResponse,
+    VelocityResponse,
+)
+from fastapi import Query
+
+router = APIRouter(prefix="/civic/insights")
+
+
+@router.get("/overview", response_model=OverviewResponse)
+def overview(jurisdiction: str | None = None) -> OverviewResponse:
+    """Quantitative snapshot: totals, type/status/month breakdowns, date span.
+
+    ``?jurisdiction=<slug>`` scopes the snapshot to one city; omit it for all.
+    """
+
+    # Lazy import keeps mounting this router free of the DB stack at import time.
+    from app.civic.insights import corpus_overview
+
+    return OverviewResponse(**corpus_overview(jurisdiction))
+
+
+@router.get("/topics", response_model=TopicActivityResponse)
+def topics(
+    since: date | None = None, jurisdiction: str | None = None
+) -> TopicActivityResponse:
+    """Bill counts for curated policy topics, optionally by ``?since=`` / ``?jurisdiction=``."""
+
+    from app.civic.insights import topic_activity
+
+    return TopicActivityResponse(**topic_activity(since, jurisdiction))
+
+
+@router.get("/trends", response_model=TrendsResponse)
+def trends(jurisdiction: str | None = None) -> TrendsResponse:
+    """Per-topic bill counts by year — the multi-year activity trend."""
+
+    from app.civic.insights import topic_trends
+
+    return TrendsResponse(**topic_trends(jurisdiction))
+
+
+@router.get("/brief", response_model=BriefResponse)
+def brief(
+    topic: str = Query(..., min_length=1, max_length=200),
+    jurisdiction: str | None = None,
+    since: date | None = None,
+) -> BriefResponse:
+    """A grounded, consulting-style briefing on a policy ``topic``.
+
+    Retrieves the relevant bills and synthesises an advisory summary (overview,
+    notable measures, status, guidance) with the same cite-or-refuse discipline as
+    ``/civic/ask``. Never 500s for the normal failure modes — returns
+    ``refused: true`` with an explanatory ``briefing`` instead.
+    """
+
+    from app.civic.brief import generate_brief
+
+    return generate_brief(topic, jurisdiction=jurisdiction, since=since)
+
+
+@router.get("/sponsors", response_model=SponsorsResponse)
+def sponsors(
+    topic: str | None = None,
+    jurisdiction: str | None = None,
+    since: date | None = None,
+    limit: int = Query(10, ge=1, le=50),
+) -> SponsorsResponse:
+    """Most active sponsors, optionally scoped by ``?topic=`` / ``?jurisdiction=``.
+
+    With a topic this answers "who leads on <topic>?" — ranked by distinct bills
+    sponsored under the scope.
+    """
+
+    from app.civic.insights import top_sponsors
+
+    return SponsorsResponse(**top_sponsors(topic, jurisdiction, since, limit))
+
+
+@router.get("/timeline", response_model=BillTimelineResponse)
+def timeline(
+    file_no: str = Query(..., min_length=1, max_length=64),
+    jurisdiction: str | None = None,
+) -> BillTimelineResponse:
+    """The legislative action history (timeline) for one bill by ``?file_no=``."""
+
+    from app.civic.insights import bill_timeline
+
+    return BillTimelineResponse(**bill_timeline(file_no, jurisdiction))
+
+
+@router.get("/bill-sponsors", response_model=BillSponsorsResponse)
+def bill_sponsors_route(
+    file_no: str = Query(..., min_length=1, max_length=64),
+    jurisdiction: str | None = None,
+) -> BillSponsorsResponse:
+    """The sponsors of one bill (seq 0 = primary) by ``?file_no=``."""
+
+    from app.civic.insights import bill_sponsors
+
+    return BillSponsorsResponse(**bill_sponsors(file_no, jurisdiction))
+
+
+@router.get("/velocity", response_model=VelocityResponse)
+def velocity(
+    jurisdiction: str | None = None, since: date | None = None
+) -> VelocityResponse:
+    """How fast enacted legislation moves: count + avg days from intro to final action."""
+
+    from app.civic.insights import legislative_velocity
+
+    return VelocityResponse(**legislative_velocity(jurisdiction, since))
+
+
+@router.get("/rollcall", response_model=RollCallResponse)
+def rollcall(
+    file_no: str = Query(..., min_length=1, max_length=64),
+    jurisdiction: str | None = None,
+) -> RollCallResponse:
+    """The most recent per-member roll-call for a bill by ``?file_no=``."""
+
+    from app.civic.insights import bill_rollcall
+
+    return RollCallResponse(**bill_rollcall(file_no, jurisdiction))
+
+
+@router.get("/member", response_model=MemberRecordResponse)
+def member(
+    person: str = Query(..., min_length=1, max_length=120),
+    topic: str | None = None,
+    jurisdiction: str | None = None,
+) -> MemberRecordResponse:
+    """A member's voting record (bills per vote value), optionally on a ``?topic=``."""
+
+    from app.civic.insights import member_record
+
+    return MemberRecordResponse(**member_record(person, topic, jurisdiction))
+
+
+@router.get("/member-activity", response_model=MemberActivityResponse)
+def member_activity(
+    person: str = Query(..., min_length=1, max_length=120),
+    jurisdiction: str | None = None,
+) -> MemberActivityResponse:
+    """A member's sponsored-bill count per year by ``?person=``."""
+
+    from app.civic.insights import member_activity as _member_activity
+
+    return MemberActivityResponse(**_member_activity(person, jurisdiction))
