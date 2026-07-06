@@ -197,32 +197,36 @@ export default function InsightsPanel({ jurisdiction = "" }: { jurisdiction?: st
             {!briefLoading && !brief && (
               <p className="note status-err">Couldn&apos;t generate a briefing.</p>
             )}
-            {!briefLoading && brief && (
-              <div className={brief.refused ? undefined : "response"}>
-                <p className={`answer${brief.refused ? " refusal" : ""}`}>
-                  {brief.briefing}
-                </p>
-                {!brief.refused && brief.citations.length > 0 && (
-                  <>
-                    <p className="source-divider">Sources</p>
-                    <CitationList citations={brief.citations} jurisdiction={jurisdiction} />
-                  </>
+            {!briefLoading && (brief || sponsors.length > 0) && (
+              <div className="detail-modules">
+                {brief && (
+                  <div className={brief.refused ? undefined : "response"}>
+                    <p className={`answer${brief.refused ? " refusal" : ""}`}>
+                      {brief.briefing}
+                    </p>
+                    {!brief.refused && brief.citations.length > 0 && (
+                      <>
+                        <p className="source-divider">Sources</p>
+                        <CitationList citations={brief.citations} jurisdiction={jurisdiction} />
+                      </>
+                    )}
+                  </div>
                 )}
-              </div>
-            )}
-            {!briefLoading && sponsors.length > 0 && (
-              <div className="sponsors">
-                <p className="section-title">Leading sponsors on this topic</p>
-                <ul className="sponsor-list">
-                  {sponsors.map((s) => (
-                    <li key={s.name}>
-                      <Link className="sponsor-name" href={`/member/${encodeURIComponent(s.name)}`}>
-                        {s.name}
-                      </Link>
-                      <span className="sponsor-count">{s.bills} bills</span>
-                    </li>
-                  ))}
-                </ul>
+                {sponsors.length > 0 && (
+                  <div className="sponsors">
+                    <p className="section-title">Leading sponsors on this topic</p>
+                    <ul className="sponsor-list">
+                      {sponsors.map((s) => (
+                        <li key={s.name}>
+                          <Link className="sponsor-name" href={`/member/${encodeURIComponent(s.name)}`}>
+                            {s.name}
+                          </Link>
+                          <span className="sponsor-count">{s.bills} bills</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
           </div>

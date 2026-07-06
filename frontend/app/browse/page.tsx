@@ -183,7 +183,7 @@ export default function Browse() {
   }
 
   return (
-    <main className="container-wide">
+    <main className="container-app">
       <header className="page-header">
         <p className="breadcrumb">
           <Link href="/">Docket</Link>
@@ -197,182 +197,193 @@ export default function Browse() {
         </p>
       </header>
 
-      <div className="panel">
-        <form onSubmit={onSubmit}>
-          <div className="browse-filters">
-            <div>
-              <label htmlFor="q">Title contains</label>
-              <input
-                id="q"
-                type="text"
-                placeholder="zoning"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-            <div>
-              <label htmlFor="status">Status</label>
-              <select
-                id="status"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                disabled={loading}
-              >
-                <option value="">All</option>
-                {STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {jurisdictions.length > 1 && (
-              <div>
-                <label htmlFor="jurisdiction">City</label>
-                <select
-                  id="jurisdiction"
-                  value={jurisdiction}
-                  onChange={(e) => setJurisdiction(e.target.value)}
-                  disabled={loading}
-                >
-                  <option value="">All cities</option>
-                  {jurisdictions.map((j) => (
-                    <option key={j.slug} value={j.slug}>
-                      {j.slug} ({j.documents.toLocaleString()})
-                    </option>
-                  ))}
-                </select>
+      <div className="browse-grid">
+        <aside className="browse-rail">
+          <div className="panel">
+            <form onSubmit={onSubmit}>
+              <div className="browse-filters">
+                <div>
+                  <label htmlFor="q">Title contains</label>
+                  <input
+                    id="q"
+                    type="text"
+                    placeholder="zoning"
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    disabled={loading}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="status">Status</label>
+                  <select
+                    id="status"
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                    disabled={loading}
+                  >
+                    <option value="">All</option>
+                    {STATUSES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {jurisdictions.length > 1 && (
+                  <div>
+                    <label htmlFor="jurisdiction">City</label>
+                    <select
+                      id="jurisdiction"
+                      value={jurisdiction}
+                      onChange={(e) => setJurisdiction(e.target.value)}
+                      disabled={loading}
+                    >
+                      <option value="">All cities</option>
+                      {jurisdictions.map((j) => (
+                        <option key={j.slug} value={j.slug}>
+                          {j.slug} ({j.documents.toLocaleString()})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          <div className="row">
-            <button type="submit" disabled={loading}>
-              {loading ? "Loading…" : "Browse bills"}
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {(q.trim() || status || jurisdiction) && (
-        <div className="filter-chips" style={{ marginTop: 16 }}>
-          {q.trim() && (
-            <button
-              type="button"
-              className="example-chip"
-              onClick={() => setQ("")}
-            >
-              Title: “{q.trim()}” ×
-            </button>
-          )}
-          {status && (
-            <button
-              type="button"
-              className="example-chip"
-              onClick={() => setStatus("")}
-            >
-              Status: {status} ×
-            </button>
-          )}
-          {jurisdiction && (
-            <button
-              type="button"
-              className="example-chip"
-              onClick={() => setJurisdiction("")}
-            >
-              City: {jurisdiction} ×
-            </button>
-          )}
-        </div>
-      )}
-
-      {error && (
-        <div className="error-state" style={{ marginTop: 24 }}>
-          <p className="error-state-msg" style={{ marginBottom: 0 }}>
-            {error}
-          </p>
-        </div>
-      )}
-
-      {results && (
-        <section style={{ marginTop: 24 }}>
-          <p className="note" style={{ fontVariantNumeric: "tabular-nums" }}>
-            {results.total.toLocaleString()} matching bill
-            {results.total === 1 ? "" : "s"}
-            {results.bills.length > 0
-              ? ` — showing ${offset + 1}-${offset + results.bills.length} of ${results.total.toLocaleString()}`
-              : ""}
-          </p>
-          {results.bills.length === 0 ? (
-            <div className="empty-state">
-              <p className="empty-state-title">No bills match these filters.</p>
-              <p className="empty-state-help">
-                Try loosening or clearing the filters to widen the search.
-              </p>
-              <div className="empty-state-actions">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => {
-                    setQ("");
-                    setStatus("");
-                    setJurisdiction("");
-                  }}
-                >
-                  Clear filters
+              <div className="row">
+                <button type="submit" disabled={loading}>
+                  {loading ? "Loading…" : "Browse bills"}
                 </button>
               </div>
-            </div>
-          ) : (
-            <div className="data-list">
-              {results.bills.map((b, i) => (
-                <Link
-                  key={b.file_no ?? `row-${i}`}
-                  href={`/bill/${encodeURIComponent(b.file_no ?? "")}`}
-                  className="data-row"
+            </form>
+          </div>
+
+          {(q.trim() || status || jurisdiction) && (
+            <div className="filter-chips">
+              {q.trim() && (
+                <button
+                  type="button"
+                  className="example-chip"
+                  onClick={() => setQ("")}
                 >
-                  <span className="data-row-title">
-                    #{b.file_no ?? "—"} · {b.title ?? "—"}
-                  </span>
-                  <span className="data-row-meta">
-                    {b.doc_type ?? "—"} · {b.intro_date ?? "—"}{" "}
-                    <span className={statusTokenClass(b.status)}>
-                      {b.status ?? "—"}
-                    </span>
-                  </span>
-                </Link>
-              ))}
+                  Title: “{q.trim()}” ×
+                </button>
+              )}
+              {status && (
+                <button
+                  type="button"
+                  className="example-chip"
+                  onClick={() => setStatus("")}
+                >
+                  Status: {status} ×
+                </button>
+              )}
+              {jurisdiction && (
+                <button
+                  type="button"
+                  className="example-chip"
+                  onClick={() => setJurisdiction("")}
+                >
+                  City: {jurisdiction} ×
+                </button>
+              )}
             </div>
           )}
-          <div className="browse-actions">
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={exportCsv}
-              disabled={exporting || results.bills.length === 0}
-            >
-              {exporting ? "Exporting…" : "Export CSV"}
-            </button>
-            {exportNote && <p className="note">{exportNote}</p>}
-          </div>
-          <div className="row" style={{ marginTop: 16 }}>
-            <button
-              type="button"
-              onClick={() => runQuery(offset - PAGE_SIZE)}
-              disabled={loading || offset === 0}
-            >
-              Prev
-            </button>
-            <button
-              type="button"
-              onClick={() => runQuery(offset + PAGE_SIZE)}
-              disabled={loading || results.bills.length < PAGE_SIZE}
-            >
-              Next
-            </button>
-          </div>
-        </section>
-      )}
+
+          {results && (
+            <div className="browse-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={exportCsv}
+                disabled={exporting || results.bills.length === 0}
+              >
+                {exporting ? "Exporting…" : "Export CSV"}
+              </button>
+              {exportNote && <p className="note">{exportNote}</p>}
+            </div>
+          )}
+        </aside>
+
+        <div className="detail-main">
+          {error && (
+            <div className="error-state">
+              <p className="error-state-msg" style={{ marginBottom: 0 }}>
+                {error}
+              </p>
+            </div>
+          )}
+
+          {results && (
+            <section>
+              <div className="toolbar">
+                <p className="note" style={{ fontVariantNumeric: "tabular-nums" }}>
+                  {results.total.toLocaleString()} matching bill
+                  {results.total === 1 ? "" : "s"}
+                  {results.bills.length > 0
+                    ? ` — showing ${offset + 1}-${offset + results.bills.length} of ${results.total.toLocaleString()}`
+                    : ""}
+                </p>
+                <div className="row" style={{ marginTop: 0 }}>
+                  <button
+                    type="button"
+                    onClick={() => runQuery(offset - PAGE_SIZE)}
+                    disabled={loading || offset === 0}
+                  >
+                    Prev
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => runQuery(offset + PAGE_SIZE)}
+                    disabled={loading || results.bills.length < PAGE_SIZE}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+              {results.bills.length === 0 ? (
+                <div className="empty-state">
+                  <p className="empty-state-title">No bills match these filters.</p>
+                  <p className="empty-state-help">
+                    Try loosening or clearing the filters to widen the search.
+                  </p>
+                  <div className="empty-state-actions">
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => {
+                        setQ("");
+                        setStatus("");
+                        setJurisdiction("");
+                      }}
+                    >
+                      Clear filters
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="data-list">
+                  {results.bills.map((b, i) => (
+                    <Link
+                      key={b.file_no ?? `row-${i}`}
+                      href={`/bill/${encodeURIComponent(b.file_no ?? "")}`}
+                      className="data-row"
+                    >
+                      <span className="data-row-title">
+                        #{b.file_no ?? "—"} · {b.title ?? "—"}
+                      </span>
+                      <span className="data-row-meta">
+                        {b.doc_type ?? "—"} · {b.intro_date ?? "—"}{" "}
+                        <span className={statusTokenClass(b.status)}>
+                          {b.status ?? "—"}
+                        </span>
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+        </div>
+      </div>
     </main>
   );
 }

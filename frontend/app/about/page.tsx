@@ -54,7 +54,7 @@ export default function AboutPage() {
   const sortedJz = [...jurisdictions].sort((a, b) => b.documents - a.documents);
 
   return (
-    <main className="container">
+    <main className="container-app">
       <header className="page-header">
         <p className="breadcrumb">
           <Link href="/">Docket</Link>
@@ -73,78 +73,84 @@ export default function AboutPage() {
         </p>
       </header>
 
-      <div className="panel">
-        <p className="section-title">What it is</p>
-        <p className="answer">
-          Ask a plain-English question about local legislation and Docket
-          answers from the actual bill text, with citations you can open and
-          read for yourself. When the records don&apos;t support a confident
-          answer, it refuses rather than guessing — the goal is trust, not the
-          appearance of one.
-        </p>
-      </div>
-
-      <div className="panel">
-        <p className="section-title">How it works</p>
-        <ol className="steps">
-          <li>Ingest bill text from the Legistar public API.</li>
-          <li>Retrieve the relevant passages with a hybrid dense + lexical search.</li>
-          <li>Synthesize a cite-or-refuse answer with a local LLM.</li>
-          <li>Enrich each bill with its sponsors, timeline, and roll-call votes.</li>
-        </ol>
-      </div>
-
-      <div className="panel">
-        <p className="eyebrow">Live coverage</p>
-        {loading && <p className="note">Loading coverage…</p>}
-        {!loading && failed && (
-          <div className="error-state">
-            <p className="error-state-msg">
-              Coverage is unavailable — the Docket API may be offline. The rest
-              of this page still describes how Docket works.
+      <div className="detail-grid">
+        <div className="detail-main">
+          <div className="panel">
+            <p className="section-title">What it is</p>
+            <p className="answer prose">
+              Ask a plain-English question about local legislation and Docket
+              answers from the actual bill text, with citations you can open and
+              read for yourself. When the records don&apos;t support a confident
+              answer, it refuses rather than guessing — the goal is trust, not
+              the appearance of one.
             </p>
           </div>
-        )}
-        {!loading && !failed && (
-          <>
-            {overview && typeof overview.total_documents === "number" && (
-              <div className="kpi-grid">
-                <div className="kpi">
-                  <span className="kpi-num">
-                    {overview.total_documents.toLocaleString()}
-                  </span>
-                  <span className="kpi-label">bills &amp; resolutions</span>
-                </div>
-                {overview.earliest_intro_date && overview.latest_intro_date && (
-                  <div className="kpi">
-                    <span className="kpi-num">
-                      {overview.earliest_intro_date} → {overview.latest_intro_date}
-                    </span>
-                    <span className="kpi-label">introduced-date span</span>
+
+          <div className="panel" style={{ marginTop: "var(--space-5)" }}>
+            <p className="section-title">How it works</p>
+            <ol className="steps">
+              <li>Ingest bill text from the Legistar public API.</li>
+              <li>Retrieve the relevant passages with a hybrid dense + lexical search.</li>
+              <li>Synthesize a cite-or-refuse answer with a local LLM.</li>
+              <li>Enrich each bill with its sponsors, timeline, and roll-call votes.</li>
+            </ol>
+          </div>
+        </div>
+
+        <aside className="detail-side">
+          <div className="panel">
+            <p className="eyebrow">Live coverage</p>
+            {loading && <p className="note">Loading coverage…</p>}
+            {!loading && failed && (
+              <div className="error-state">
+                <p className="error-state-msg">
+                  Coverage is unavailable — the Docket API may be offline. The
+                  rest of this page still describes how Docket works.
+                </p>
+              </div>
+            )}
+            {!loading && !failed && (
+              <>
+                {overview && typeof overview.total_documents === "number" && (
+                  <div className="kpi-grid">
+                    <div className="kpi">
+                      <span className="kpi-num">
+                        {overview.total_documents.toLocaleString()}
+                      </span>
+                      <span className="kpi-label">bills &amp; resolutions</span>
+                    </div>
+                    {overview.earliest_intro_date && overview.latest_intro_date && (
+                      <div className="kpi">
+                        <span className="kpi-num">
+                          {overview.earliest_intro_date} → {overview.latest_intro_date}
+                        </span>
+                        <span className="kpi-label">introduced-date span</span>
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
-            )}
 
-            <p className="section-title">Jurisdictions</p>
-            {sortedJz.length > 0 ? (
-              <div className="data-list">
-                {sortedJz.map((j) => (
-                  <div className="data-row" key={j.slug}>
-                    <span className="data-row-title">{j.slug}</span>
-                    <span className="data-row-meta">
-                      {j.documents.toLocaleString()} bills
-                    </span>
+                <p className="section-title">Jurisdictions</p>
+                {sortedJz.length > 0 ? (
+                  <div className="data-list">
+                    {sortedJz.map((j) => (
+                      <div className="data-row" key={j.slug}>
+                        <span className="data-row-title">{j.slug}</span>
+                        <span className="data-row-meta">
+                          {j.documents.toLocaleString()} bills
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="note">No jurisdictions reported.</p>
-            )}
+                ) : (
+                  <p className="note">No jurisdictions reported.</p>
+                )}
 
-            <p className="note">Source: the Legistar public API.</p>
-          </>
-        )}
+                <p className="note">Source: the Legistar public API.</p>
+              </>
+            )}
+          </div>
+        </aside>
       </div>
     </main>
   );

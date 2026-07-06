@@ -150,28 +150,6 @@ function TopicView({ topic }: { topic: string }) {
         </div>
       </div>
 
-      {trend && (
-        <div className="panel">
-          <div className="section-head">
-            <p className="section-head-title">Activity over time</p>
-            <p className="section-head-caption">
-              {trend.years[0]}–{trend.years[trend.years.length - 1]} · bills per year
-            </p>
-          </div>
-          <div className="trends chart-frame">
-            <Sparkline series={trend.series} />
-            <ul className="trend-list">
-              {trend.years.map((y, i) => (
-                <li key={y} className="trend-row">
-                  <span className="trend-label">{y}</span>
-                  <span className="trend-total">{trend.series[i]}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      )}
-
       {empty ? (
         <div className="empty-state">
           <p className="empty-state-title">No legislative activity yet</p>
@@ -188,70 +166,96 @@ function TopicView({ topic }: { topic: string }) {
           </div>
         </div>
       ) : (
-        <>
-          <div className="panel">
-            <p className="section-title">Advisory briefing</p>
-            {brief && !brief.refused ? (
-              <div className="response">
-                <p className="answer">{brief.briefing}</p>
-                {brief.citations.length > 0 && (
-                  <>
-                    <p className="source-divider">Sources</p>
-                    <CitationList citations={brief.citations} jurisdiction={jurisdiction} />
-                  </>
-                )}
-              </div>
-            ) : (
-              <p className="note">
-                No grounded briefing is available for this topic yet.
-              </p>
-            )}
-          </div>
+        <div className="detail-grid">
+          <div className="detail-main">
+            <div className="panel">
+              <p className="section-title">Advisory briefing</p>
+              {brief && !brief.refused ? (
+                <div className="response">
+                  <p className="answer prose">{brief.briefing}</p>
+                  {brief.citations.length > 0 && (
+                    <>
+                      <p className="source-divider">Sources</p>
+                      <CitationList citations={brief.citations} jurisdiction={jurisdiction} />
+                    </>
+                  )}
+                </div>
+              ) : (
+                <p className="note">
+                  No grounded briefing is available for this topic yet.
+                </p>
+              )}
+            </div>
 
-          <div className="panel">
-            <p className="section-title">Leading sponsors on this topic</p>
-            {sponsors.length > 0 ? (
-              <ul className="sponsor-list">
-                {sponsors.map((s) => (
-                  <li key={s.name}>
-                    <Link className="sponsor-name" href={`/member/${encodeURIComponent(s.name)}`}>
-                      {s.name}
+            <div className="panel" style={{ marginTop: "var(--space-5)" }}>
+              <p className="section-title">Recent matching bills</p>
+              {bills.length > 0 ? (
+                <div className="data-list">
+                  {bills.map((b, i) => (
+                    <Link
+                      key={b.file_no ?? `row-${i}`}
+                      href={billHref(b.file_no ?? "")}
+                      className="data-row"
+                    >
+                      <span className="data-row-title">
+                        #{b.file_no ?? "—"} · {b.title ?? "—"}
+                      </span>
+                      <span className="data-row-meta">
+                        <span className={statusClass(b.status)}>{b.status ?? "—"}</span>
+                        {" · "}
+                        {b.doc_type ?? "—"} · {b.intro_date ?? "—"}
+                      </span>
                     </Link>
-                    <span className="sponsor-count">{s.bills} bills</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="note">No sponsors recorded for this topic yet.</p>
-            )}
+                  ))}
+                </div>
+              ) : (
+                <p className="note">No matching bills found.</p>
+              )}
+            </div>
           </div>
 
-          <div className="panel">
-            <p className="section-title">Recent matching bills</p>
-            {bills.length > 0 ? (
-              <div className="data-list">
-                {bills.map((b, i) => (
-                  <Link
-                    key={b.file_no ?? `row-${i}`}
-                    href={billHref(b.file_no ?? "")}
-                    className="data-row"
-                  >
-                    <span className="data-row-title">
-                      #{b.file_no ?? "—"} · {b.title ?? "—"}
-                    </span>
-                    <span className="data-row-meta">
-                      <span className={statusClass(b.status)}>{b.status ?? "—"}</span>
-                      {" · "}
-                      {b.doc_type ?? "—"} · {b.intro_date ?? "—"}
-                    </span>
-                  </Link>
-                ))}
+          <aside className="detail-side">
+            {trend && (
+              <div className="panel">
+                <div className="section-head">
+                  <p className="section-head-title">Activity over time</p>
+                  <p className="section-head-caption">
+                    {trend.years[0]}–{trend.years[trend.years.length - 1]} · bills per year
+                  </p>
+                </div>
+                <div className="trends chart-frame">
+                  <Sparkline series={trend.series} />
+                  <ul className="trend-list">
+                    {trend.years.map((y, i) => (
+                      <li key={y} className="trend-row">
+                        <span className="trend-label">{y}</span>
+                        <span className="trend-total">{trend.series[i]}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
-            ) : (
-              <p className="note">No matching bills found.</p>
             )}
-          </div>
-        </>
+
+            <div className="panel">
+              <p className="section-title">Leading sponsors on this topic</p>
+              {sponsors.length > 0 ? (
+                <ul className="sponsor-list">
+                  {sponsors.map((s) => (
+                    <li key={s.name}>
+                      <Link className="sponsor-name" href={`/member/${encodeURIComponent(s.name)}`}>
+                        {s.name}
+                      </Link>
+                      <span className="sponsor-count">{s.bills} bills</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="note">No sponsors recorded for this topic yet.</p>
+              )}
+            </div>
+          </aside>
+        </div>
       )}
 
       <p className="note" style={{ marginTop: 24 }}>

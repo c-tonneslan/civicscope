@@ -18,9 +18,10 @@
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.28), 0 10px 30px rgba(0, 0, 0, 0.22);
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* content widths */
-  --measure-prose: 720px; /* ask/answer, about, account */
-  --measure-wide: 1080px; /* analytics, browse, compare */
+  /* content widths — THREE tiers now */
+  --measure-prose: 700px; /* readable running text: answer body, about/step copy (~68ch) */
+  --measure-wide: 1080px; /* KEEP for narrow prose-plus pages if referenced; superseded by app */
+  --measure-app: 1280px; /* the dashboard/app frame (range 1200–1360; 1280 default) */
 
   /* 4px spacing scale (reference these instead of raw px going forward) */
   --space-1: 4px;
@@ -93,11 +94,20 @@ a:hover {
   padding: 48px 24px 96px;
 }
 
-/* Wider content column for data-dense pages (analytics, browse, compare). */
+/* Wider content column for data-dense pages (analytics, browse, compare).
+   Bumped to the app frame so nothing that referenced it looks skinny. */
 .container-wide {
-  max-width: var(--measure-wide);
+  max-width: var(--measure-app);
   margin: 0 auto;
   padding: 48px 24px 96px;
+}
+
+/* NEW app frame — the dashboard shell for home + all data pages. Fills a
+   1440 monitor with ~80px gutters and centers calmly on 1920. */
+.container-app {
+  max-width: var(--measure-app);
+  margin: 0 auto;
+  padding: 48px 32px 96px;
 }
 
 /* --- Shared top nav ---------------------------------------------------- */
@@ -111,9 +121,9 @@ a:hover {
   border-bottom: 1px solid var(--border);
 }
 .nav-inner {
-  max-width: 720px;
+  max-width: var(--measure-app);
   margin: 0 auto;
-  padding: 12px 24px;
+  padding: 12px 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -959,7 +969,7 @@ button:disabled {
 /* --- KPI tiles --------------------------------------------------------- */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: var(--space-4);
   margin-bottom: var(--space-6);
 }
@@ -1383,12 +1393,113 @@ button:disabled {
   gap: var(--space-4);
 }
 
-/* --- Detail layout collapses to one column below 1024px --------------- */
+/* ======================================================================
+   WIDTH SYSTEM — grid utilities for the horizontal app layout (additive)
+   ====================================================================== */
+
+/* --- Home main + sticky rail ------------------------------------------- */
+.app-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: var(--space-5);
+  align-items: start;
+}
+.app-rail {
+  position: sticky;
+  top: 84px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* --- Browse: filter rail (left) + results (right) ---------------------- */
+.browse-grid {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+.browse-rail {
+  position: sticky;
+  top: 84px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* --- Bill page: side-by-side modules inside the main column ------------ */
+.detail-modules {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+/* --- Compare: sticky picker rail + main comparison region -------------- */
+.compare-shell {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+.compare-rail {
+  position: sticky;
+  top: 84px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* --- Running prose stays readable inside any wide column --------------- */
+.prose,
+.response .answer,
+.refusal-card .answer {
+  max-inline-size: var(--measure-prose);
+}
+
+/* --- Pickers stack full-width when they live inside a narrow rail ------ */
+.browse-rail .browse-filters,
+.compare-rail .browse-filters {
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.browse-rail .browse-filters > div,
+.compare-rail .browse-filters > div {
+  width: 100%;
+}
+.browse-rail .browse-filters input,
+.browse-rail .browse-filters select,
+.compare-rail .browse-filters select {
+  width: 100%;
+}
+
+/* --- Detail + width-system layouts collapse to one column below 1024px - */
 @media (max-width: 1024px) {
   .detail-grid {
     grid-template-columns: 1fr;
   }
   .detail-side {
+    position: static;
+  }
+  .app-grid {
+    grid-template-columns: 1fr;
+  }
+  .app-rail {
+    position: static;
+  }
+  .browse-grid {
+    grid-template-columns: 1fr;
+  }
+  .browse-rail {
+    position: static;
+  }
+  .detail-modules {
+    grid-template-columns: 1fr;
+  }
+  .compare-shell {
+    grid-template-columns: 1fr;
+  }
+  .compare-rail {
     position: static;
   }
 }
@@ -1491,8 +1602,11 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
-  /* Wide container gets the same tight gutter as .container. */
+  /* Wide + app containers get the same tight gutter as .container. */
   .container-wide {
+    padding: 28px 16px 64px;
+  }
+  .container-app {
     padding: 28px 16px 64px;
   }
 

@@ -212,85 +212,91 @@ function MemberView({ name }: { name: string }) {
         </div>
       </header>
 
-      <div className="panel">
-        <p className="section-title">Sponsored bills</p>
-        {sponsored.length > 0 ? (
-          <div className="data-list">
-            {sponsored.map((b) => {
-              const row = (
-                <>
-                  <span className="data-row-title">
-                    {b.file_no ? (
-                      <>
-                        <span className="cite-id">#{b.file_no}</span> {b.title ?? "Untitled"}
-                      </>
-                    ) : (
-                      b.title ?? "Untitled"
-                    )}
-                  </span>
-                  {b.status && (
-                    <span className="data-row-meta">
-                      <span className={statusTokenClass(b.status)}>{b.status}</span>
-                    </span>
-                  )}
-                </>
-              );
-              return b.file_no ? (
-                <Link
-                  key={b.file_no}
-                  className="data-row"
-                  href={`/bill/${encodeURIComponent(b.file_no)}${jzQuery}`}
-                >
-                  {row}
-                </Link>
-              ) : (
-                <div className="data-row" key={b.title}>
-                  {row}
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="note">No sponsored bills on record for this member.</p>
-        )}
-      </div>
-
-      <div className="panel">
-        <p className="section-title">Vote record</p>
-        {votes.length > 0 ? (
-          <p className="rollcall">{votes.map((v) => `${v.vote} ${v.bills}`).join(" · ")}</p>
-        ) : (
-          <p className="note">No roll-call votes on record for this member.</p>
-        )}
-      </div>
-
-      {topics.length > 0 && (
-        <div className="panel">
-          <p className="section-title">Most-active topics</p>
-          <ul className="sponsor-list">
-            {topics.map((t) => (
-              <li key={t.topic}>
-                <span className="sponsor-name">{t.topic}</span>
-                <span className="sponsor-count">{t.bills} bills</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {hasActivity && (
-        <div className="panel">
-          <div className="section-head">
-            <p className="section-head-title">Activity over time</p>
-            <p className="section-head-caption">
-              {activity.years[0]}–{activity.years[activity.years.length - 1]} · bills per year
-            </p>
-          </div>
-          <div className="chart-frame">
-            <Sparkline series={activity.series} />
+      <div className="detail-grid">
+        <div className="detail-main">
+          <div className="panel">
+            <p className="section-title">Sponsored bills</p>
+            {sponsored.length > 0 ? (
+              <div className="data-list">
+                {sponsored.map((b) => {
+                  const row = (
+                    <>
+                      <span className="data-row-title">
+                        {b.file_no ? (
+                          <>
+                            <span className="cite-id">#{b.file_no}</span> {b.title ?? "Untitled"}
+                          </>
+                        ) : (
+                          b.title ?? "Untitled"
+                        )}
+                      </span>
+                      {b.status && (
+                        <span className="data-row-meta">
+                          <span className={statusTokenClass(b.status)}>{b.status}</span>
+                        </span>
+                      )}
+                    </>
+                  );
+                  return b.file_no ? (
+                    <Link
+                      key={b.file_no}
+                      className="data-row"
+                      href={`/bill/${encodeURIComponent(b.file_no)}${jzQuery}`}
+                    >
+                      {row}
+                    </Link>
+                  ) : (
+                    <div className="data-row" key={b.title}>
+                      {row}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="note">No sponsored bills on record for this member.</p>
+            )}
           </div>
         </div>
-      )}
+
+        <aside className="detail-side">
+          <div className="panel">
+            <p className="section-title">Vote record</p>
+            {votes.length > 0 ? (
+              <p className="rollcall">{votes.map((v) => `${v.vote} ${v.bills}`).join(" · ")}</p>
+            ) : (
+              <p className="note">No roll-call votes on record for this member.</p>
+            )}
+          </div>
+
+          {topics.length > 0 && (
+            <div className="panel">
+              <p className="section-title">Most-active topics</p>
+              <ul className="sponsor-list">
+                {topics.map((t) => (
+                  <li key={t.topic}>
+                    <span className="sponsor-name">{t.topic}</span>
+                    <span className="sponsor-count">{t.bills} bills</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {hasActivity && (
+            <div className="panel">
+              <div className="section-head">
+                <p className="section-head-title">Activity over time</p>
+                <p className="section-head-caption">
+                  {activity.years[0]}–{activity.years[activity.years.length - 1]} · bills per year
+                </p>
+              </div>
+              <div className="chart-frame">
+                <Sparkline series={activity.series} />
+              </div>
+            </div>
+          )}
+        </aside>
+      </div>
 
       <p className="note" style={{ marginTop: 24 }}>
         <Link href="/">← Ask</Link>

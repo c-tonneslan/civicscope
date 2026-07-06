@@ -201,76 +201,87 @@ function AnalyticsView() {
         )}
       </div>
 
-      {months.length > 0 && (
-        <div className="panel">
-          <div className="section-head">
-            <p className="section-head-title">
-              Introduction volume, last {months.length} months
-            </p>
-            <p className="section-head-caption">
-              {trimmed
-                ? `last ${MONTHS_SHOWN} months · newest last · current month partial`
-                : "newest last · current month partial"}
-            </p>
+      {(months.length > 0 || sponsors.length > 0) && (
+        <div className="detail-grid">
+          <div className="detail-main">
+            {months.length > 0 && (
+              <div className="panel">
+                <div className="section-head">
+                  <p className="section-head-title">
+                    Introduction volume, last {months.length} months
+                  </p>
+                  <p className="section-head-caption">
+                    {trimmed
+                      ? `last ${MONTHS_SHOWN} months · newest last · current month partial`
+                      : "newest last · current month partial"}
+                  </p>
+                </div>
+                <ul className="bars chart-frame">
+                  {months.map((m) => (
+                    <li key={m.label} className="bar-row">
+                      <span className="bar-label">{m.label}</span>
+                      <span className="bar-track">
+                        <span
+                          className="bar-fill"
+                          style={{ width: `${(m.count / maxMonth) * 100}%` }}
+                        />
+                      </span>
+                      <span className="bar-value">{m.count}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
-          <ul className="bars chart-frame">
-            {months.map((m) => (
-              <li key={m.label} className="bar-row">
-                <span className="bar-label">{m.label}</span>
-                <span className="bar-track">
-                  <span
-                    className="bar-fill"
-                    style={{ width: `${(m.count / maxMonth) * 100}%` }}
-                  />
-                </span>
-                <span className="bar-value">{m.count}</span>
-              </li>
-            ))}
-          </ul>
+
+          <aside className="detail-side">
+            {sponsors.length > 0 && (
+              <div className="panel">
+                <p className="section-title">Most active sponsors</p>
+                <ul className="bars">
+                  {sponsors.map((s) => (
+                    <li key={s.name} className="bar-row">
+                      <Link className="bar-label" href={`/member/${encodeURIComponent(s.name)}`}>
+                        {s.name}
+                      </Link>
+                      <span className="bar-track">
+                        <span
+                          className="bar-fill"
+                          style={{ width: `${(s.bills / maxSponsor) * 100}%` }}
+                        />
+                      </span>
+                      <span className="bar-value">{s.bills}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </aside>
         </div>
       )}
 
-      <Trends jurisdiction={jurisdiction} panel />
-
-      {(overview.by_status.length > 0 || overview.by_type.length > 0) && (
-        <div className="breakdown-2">
-          {overview.by_status.length > 0 && (
-            <div className="panel">
-              <p className="section-title">Status breakdown</p>
-              <BarBreakdown items={overview.by_status} />
-            </div>
-          )}
-
-          {overview.by_type.length > 0 && (
-            <div className="panel">
-              <p className="section-title">Document types</p>
-              <BarBreakdown items={overview.by_type} />
-            </div>
-          )}
+      <div className="breakdown-2">
+        <div>
+          <Trends jurisdiction={jurisdiction} panel />
         </div>
-      )}
+        {(overview.by_status.length > 0 || overview.by_type.length > 0) && (
+          <div style={{ display: "grid", gap: "var(--space-4)" }}>
+            {overview.by_status.length > 0 && (
+              <div className="panel">
+                <p className="section-title">Status breakdown</p>
+                <BarBreakdown items={overview.by_status} />
+              </div>
+            )}
 
-      {sponsors.length > 0 && (
-        <div className="panel">
-          <p className="section-title">Most active sponsors</p>
-          <ul className="bars">
-            {sponsors.map((s) => (
-              <li key={s.name} className="bar-row">
-                <Link className="bar-label" href={`/member/${encodeURIComponent(s.name)}`}>
-                  {s.name}
-                </Link>
-                <span className="bar-track">
-                  <span
-                    className="bar-fill"
-                    style={{ width: `${(s.bills / maxSponsor) * 100}%` }}
-                  />
-                </span>
-                <span className="bar-value">{s.bills}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+            {overview.by_type.length > 0 && (
+              <div className="panel">
+                <p className="section-title">Document types</p>
+                <BarBreakdown items={overview.by_type} />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <p className="note" style={{ marginTop: 24 }}>
         <Link href="/">← Ask</Link>

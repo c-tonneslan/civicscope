@@ -37,24 +37,33 @@ function CompareColumn({
   return (
     <section className="panel compare-col">
       <p className="section-title">{label}</p>
-      <div className="chip-stat" style={{ marginBottom: 20 }}>
-        <span className="chip-stat-num">{count ?? "—"}</span>
-        <span className="chip-stat-label">Total bills</span>
-      </div>
-
-      {showSpark && (
-        <div className="trends">
-          <div className="section-head">
-            <p className="section-head-title">Activity over time</p>
-            <p className="section-head-caption">
-              {first}–{last} · bills per year
-            </p>
-          </div>
-          <div className="chart-frame">
-            <Sparkline series={series} />
-          </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "auto 1fr",
+          gap: "var(--space-5)",
+          alignItems: "center",
+          marginBottom: "var(--space-4)",
+        }}
+      >
+        <div className="chip-stat">
+          <span className="chip-stat-num">{count ?? "—"}</span>
+          <span className="chip-stat-label">Total bills</span>
         </div>
-      )}
+        {showSpark && (
+          <div className="trends">
+            <div className="section-head">
+              <p className="section-head-title">Activity over time</p>
+              <p className="section-head-caption">
+                {first}–{last} · bills per year
+              </p>
+            </div>
+            <div className="chart-frame">
+              <Sparkline series={series} />
+            </div>
+          </div>
+        )}
+      </div>
 
       <p className="section-title" style={{ marginTop: 16 }}>
         Top sponsors
@@ -177,7 +186,7 @@ function CompareView() {
 
   if (loadingTopics) {
     return (
-      <main className="container-wide">
+      <main className="container-app">
         <div className="page-header">
           <p className="breadcrumb">
             <Link href="/">Docket</Link>
@@ -193,7 +202,7 @@ function CompareView() {
 
   if (failed || topics.length === 0) {
     return (
-      <main className="container-wide">
+      <main className="container-app">
         <div className="page-header">
           <p className="breadcrumb">
             <Link href="/">Docket</Link>
@@ -211,7 +220,7 @@ function CompareView() {
   }
 
   return (
-    <main className="container-wide">
+    <main className="container-app">
       <div className="page-header">
         <p className="breadcrumb">
           <Link href="/">Docket</Link>
@@ -224,57 +233,63 @@ function CompareView() {
         </p>
       </div>
 
-      <div className="compare-picker browse-filters">
-        <div>
-          <label htmlFor="compare-a">Topic A</label>
-          <select
-            id="compare-a"
-            value={a}
-            onChange={(e) => select("a", e.target.value)}
-          >
-            <option value="">Choose a topic…</option>
-            {topics.map((t) => (
-              <option key={t.topic} value={t.topic}>
-                {t.topic}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="compare-b">Topic B</label>
-          <select
-            id="compare-b"
-            value={b}
-            onChange={(e) => select("b", e.target.value)}
-          >
-            <option value="">Choose a topic…</option>
-            {topics.map((t) => (
-              <option key={t.topic} value={t.topic}>
-                {t.topic}
-              </option>
-            ))}
-          </select>
+      <div className="compare-shell">
+        <aside className="compare-rail">
+          <div className="compare-picker browse-filters">
+            <div>
+              <label htmlFor="compare-a">Topic A</label>
+              <select
+                id="compare-a"
+                value={a}
+                onChange={(e) => select("a", e.target.value)}
+              >
+                <option value="">Choose a topic…</option>
+                {topics.map((t) => (
+                  <option key={t.topic} value={t.topic}>
+                    {t.topic}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="compare-b">Topic B</label>
+              <select
+                id="compare-b"
+                value={b}
+                onChange={(e) => select("b", e.target.value)}
+              >
+                <option value="">Choose a topic…</option>
+                {topics.map((t) => (
+                  <option key={t.topic} value={t.topic}>
+                    {t.topic}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <p className="note" style={{ marginTop: 24 }}>
+            <Link href="/">← Ask</Link>
+          </p>
+        </aside>
+
+        <div className="detail-main">
+          {a && b ? (
+            <div className="compare-grid">
+              <CompareColumn label={a} count={countFor(a)} trends={trends} sponsors={sponsorsA} />
+              <CompareColumn label={b} count={countFor(b)} trends={trends} sponsors={sponsorsB} />
+            </div>
+          ) : (
+            <div className="empty-state">
+              <p className="empty-state-title">Pick two topics to compare</p>
+              <p className="empty-state-help">
+                Choose a topic in each column above to see their volume, activity over time, and top
+                sponsors side by side.
+              </p>
+            </div>
+          )}
         </div>
       </div>
-
-      {a && b ? (
-        <div className="compare-grid">
-          <CompareColumn label={a} count={countFor(a)} trends={trends} sponsors={sponsorsA} />
-          <CompareColumn label={b} count={countFor(b)} trends={trends} sponsors={sponsorsB} />
-        </div>
-      ) : (
-        <div className="empty-state">
-          <p className="empty-state-title">Pick two topics to compare</p>
-          <p className="empty-state-help">
-            Choose a topic in each column above to see their volume, activity over time, and top
-            sponsors side by side.
-          </p>
-        </div>
-      )}
-
-      <p className="note" style={{ marginTop: 24 }}>
-        <Link href="/">← Ask</Link>
-      </p>
     </main>
   );
 }
@@ -285,7 +300,7 @@ export default function ComparePage() {
   return (
     <Suspense
       fallback={
-        <main className="container-wide">
+        <main className="container-app">
           <div className="page-header">
             <p className="breadcrumb">
               <Link href="/">Docket</Link>

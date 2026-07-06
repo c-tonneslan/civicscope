@@ -173,8 +173,8 @@ function HomeInner() {
   const totalDocuments = jurisdictions.reduce((sum, j) => sum + j.documents, 0);
 
   return (
-    <main className="container">
-      <section className="hero">
+    <main className="container-app">
+      <section className="hero" style={{ maxWidth: 860 }}>
         <p className="eyebrow">Docket</p>
         <h1>Answers about Philadelphia legislation you can actually cite.</h1>
         <p className="lede">
@@ -328,17 +328,15 @@ function HomeInner() {
         )}
       </section>
 
-      <section className="home-section">
-        <Digest jurisdiction={jurisdiction} />
-      </section>
-
-      <section className="home-section">
-        <InsightsPanel jurisdiction={jurisdiction} />
-      </section>
-
-      <section className="home-section">
-        <Watchlist jurisdiction={jurisdiction} />
-      </section>
+      <div className="app-grid" style={{ marginTop: 48 }}>
+        <div className="detail-main">
+          <InsightsPanel jurisdiction={jurisdiction} />
+        </div>
+        <aside className="app-rail">
+          <Digest jurisdiction={jurisdiction} />
+          <Watchlist jurisdiction={jurisdiction} />
+        </aside>
+      </div>
     </main>
   );
 }
