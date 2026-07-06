@@ -9,7 +9,7 @@ type Trend = { topic: string; series: number[] };
 type TrendsData = { years: number[]; topics: Trend[] };
 
 // A tiny inline-SVG sparkline of one topic's per-year counts.
-function Sparkline({ series }: { series: number[] }) {
+export function Sparkline({ series }: { series: number[] }) {
   if (series.length < 2) return null;
   const w = 150;
   const h = 26;
