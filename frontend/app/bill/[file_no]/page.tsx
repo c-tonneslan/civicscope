@@ -30,6 +30,14 @@ type RollCall = {
 };
 type BillSponsor = { name: string; seq: number | null };
 type Sponsors = { found: boolean; sponsors: BillSponsor[] };
+type BillRow = {
+  file_no: string | null;
+  title: string | null;
+  status: string | null;
+  doc_type: string | null;
+  intro_date: string | null;
+};
+type BillList = { bills: BillRow[]; total: number; limit: number; offset: number };
 
 // A shareable per-bill page aggregating one Matter from the existing insight
 // endpoints (timeline carries the header title/status/url; roll-call; sponsors).
@@ -39,6 +47,7 @@ function BillView({ fileNo }: { fileNo: string }) {
   const [timeline, setTimeline] = useState<Timeline | null>(null);
   const [rollcall, setRollcall] = useState<RollCall | null>(null);
   const [sponsors, setSponsors] = useState<Sponsors | null>(null);
+  const [more, setMore] = useState<{ sponsor: string; bills: BillRow[] } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -75,6 +84,47 @@ function BillView({ fileNo }: { fileNo: string }) {
       live = false;
     };
   }, [fileNo, jurisdiction]);
+
+  // Primary sponsor drives the "More from this sponsor" section: prefer seq 0,
+  // else the first entry so a bill whose sponsors all have null seq still picks one.
+  const primary =
+    sponsors?.found && sponsors.sponsors.length > 0
+      ? (sponsors.sponsors.find((s) => s.seq === 0) ?? sponsors.sponsors[0])
+      : null;
+
+  // Separate from the core-load gate so a slow/failed related fetch never blocks
+  // or errors the page; degrades to nothing when there's no sponsor or on failure.
+  useEffect(() => {
+    let live = true;
+    if (!primary?.name) {
+      setMore(null);
+      return () => {
+        live = false;
+      };
+    }
+    const params = new URLSearchParams({ sponsor: primary.name, limit: "8" });
+    if (jurisdiction) params.set("jurisdiction", jurisdiction);
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/civic/bills?${params.toString()}`);
+        if (!res.ok) {
+          if (live) setMore(null);
+          return;
+        }
+        const data: BillList = await res.json();
+        const rows = (data.bills ?? [])
+          .filter((b) => b.file_no && b.file_no !== fileNo)
+          .slice(0, 6);
+        if (!live) return;
+        setMore(rows.length > 0 ? { sponsor: primary.name, bills: rows } : null);
+      } catch {
+        if (live) setMore(null);
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [primary?.name, fileNo, jurisdiction]);
 
   if (loading) {
     return (
@@ -173,6 +223,36 @@ function BillView({ fileNo }: { fileNo: string }) {
           <p className="note">No sponsors recorded for this bill yet.</p>
         )}
       </div>
+
+      {more && more.bills.length > 0 && (
+        <div className="panel">
+          <p className="section-title">
+            More from{" "}
+            <Link
+              className="sponsor-name"
+              href={`/member/${encodeURIComponent(more.sponsor)}`}
+            >
+              {more.sponsor}
+            </Link>
+          </p>
+          {more.bills.map((b, i) => (
+            <Link
+              key={b.file_no ?? `m-${i}`}
+              className="bill-row"
+              href={`/bill/${encodeURIComponent(b.file_no ?? "")}${
+                jurisdiction ? `?jurisdiction=${encodeURIComponent(jurisdiction)}` : ""
+              }`}
+            >
+              <span className="bill-row-title">
+                #{b.file_no ?? "—"} · {b.title ?? "—"}
+              </span>
+              <span className="bill-row-meta">
+                {b.status ?? "—"} · {b.intro_date ?? "—"}
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
 
       <p className="note" style={{ marginTop: 24 }}>
         <Link href="/">← Ask</Link>
