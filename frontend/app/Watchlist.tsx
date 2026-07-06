@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+import { useAuth } from "./AuthContext";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -31,7 +33,19 @@ type WatchItem = {
   intro_date: string | null;
 };
 
+// Trim, drop empties, case-insensitive dedup — the one normalization both the
+// localStorage read and the server load run so the two sources stay identical.
+function normalizeTopics(raw: unknown[]): string[] {
+  const seen = new Set<string>();
+  return raw
+    .filter((t): t is string => typeof t === "string")
+    .map((t) => t.trim())
+    .filter((t) => t && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase()));
+}
+
 export default function Watchlist({ jurisdiction = "" }: { jurisdiction?: string }) {
+  const { token } = useAuth();
+  const authed = !!token;
   const [topics, setTopics] = useState<string[]>([]);
   // Gates the localStorage write and the empty-state render: never touch
   // storage or diverge from the server-rendered HTML until the client read ran.
@@ -39,6 +53,12 @@ export default function Watchlist({ jurisdiction = "" }: { jurisdiction?: string
   const [input, setInput] = useState("");
   const [byTopic, setByTopic] = useState<Record<string, WatchItem[]>>({});
   const [failed, setFailed] = useState<Record<string, boolean>>({});
+  // Set when a watchlist read/write against the server fails; shown as a note
+  // so the user knows their change may not have persisted. Topics are left as-is
+  // (degrade, don't wipe).
+  const [serverError, setServerError] = useState(false);
+  // Ensures the localStorage->server merge runs at most once per login.
+  const mergedRef = useRef(false);
 
   // Read once on mount. Never read localStorage during render — that would
   // desync SSR/client and throw a hydration error.
@@ -48,14 +68,7 @@ export default function Watchlist({ jurisdiction = "" }: { jurisdiction?: string
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          const seen = new Set<string>();
-          const clean = parsed
-            .filter((t): t is string => typeof t === "string")
-            .map((t) => t.trim())
-            .filter((t) => t && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase()));
-          setTopics(clean);
-        }
+        if (Array.isArray(parsed)) setTopics(normalizeTopics(parsed));
       }
     } catch {
       // Corrupt value — ignore and start empty.
@@ -63,28 +76,141 @@ export default function Watchlist({ jurisdiction = "" }: { jurisdiction?: string
     setHydrated(true);
   }, []);
 
-  // Persist. Gated on `hydrated` so the initial empty state never clobbers
-  // stored topics before the read effect runs; try/catch swallows Safari
-  // private-mode quota errors.
+  // Load the server list when authenticated. Keyed on `[token]` so a login (or
+  // token swap) re-hydrates from the caller's own list. On a failed/unreachable
+  // read, keep the current topics and flag the error rather than wiping.
   useEffect(() => {
-    if (!hydrated || typeof window === "undefined") return;
+    if (!token) return;
+    let live = true;
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/civic/watchlist/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error(`watchlist -> ${res.status}`);
+        const json = await res.json();
+        if (!live) return;
+        setTopics(normalizeTopics((json.topics as unknown[]) ?? []));
+        setServerError(false);
+      } catch {
+        if (live) setServerError(true);
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [token]);
+
+  // Persist to localStorage only while logged out. A logged-in session's list
+  // lives on the server, so gating on `!authed` keeps another user's topics
+  // from being written into this browser's storage.
+  useEffect(() => {
+    if (!hydrated || authed || typeof window === "undefined") return;
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(topics));
     } catch {
       // Quota / private mode — nothing to do.
     }
-  }, [topics, hydrated]);
+  }, [topics, hydrated, authed]);
+
+  // On login, push any local-only topics the server doesn't have, then clear
+  // the local key. Runs once per login transition (mergedRef), reset on logout.
+  useEffect(() => {
+    if (!token) {
+      mergedRef.current = false;
+      return;
+    }
+    if (mergedRef.current || typeof window === "undefined") return;
+    mergedRef.current = true;
+    let local: string[] = [];
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) local = normalizeTopics(parsed);
+      }
+    } catch {
+      return;
+    }
+    if (!local.length) return;
+    (async () => {
+      let last: string[] | null = null;
+      for (const topic of local) {
+        try {
+          const res = await fetch(`${API_URL}/civic/watchlist/`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ topic }),
+          });
+          if (res.ok) last = normalizeTopics(((await res.json()).topics as unknown[]) ?? []);
+        } catch {
+          // Skip this topic; the load effect still holds the server truth.
+        }
+      }
+      if (last) setTopics(last);
+      try {
+        window.localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+    })();
+  }, [token]);
 
   function add(topic: string) {
     const clean = topic.trim().slice(0, 100);
     if (!clean) return;
-    setTopics((prev) =>
-      prev.some((t) => t.toLowerCase() === clean.toLowerCase()) ? prev : [...prev, clean]
-    );
+    if (topics.some((t) => t.toLowerCase() === clean.toLowerCase())) return;
+
+    if (!authed) {
+      setTopics((prev) => [...prev, clean]);
+      return;
+    }
+    const prev = topics;
+    setTopics([...prev, clean]);
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/civic/watchlist/`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ topic: clean }),
+        });
+        if (!res.ok) throw new Error(`watchlist -> ${res.status}`);
+        setTopics(normalizeTopics(((await res.json()).topics as unknown[]) ?? []));
+        setServerError(false);
+      } catch {
+        setTopics(prev);
+        setServerError(true);
+      }
+    })();
   }
 
   function remove(topic: string) {
-    setTopics((prev) => prev.filter((t) => t !== topic));
+    if (!authed) {
+      setTopics((prev) => prev.filter((t) => t !== topic));
+      return;
+    }
+    const prev = topics;
+    setTopics(prev.filter((t) => t !== topic));
+    (async () => {
+      try {
+        const res = await fetch(
+          `${API_URL}/civic/watchlist/?topic=${encodeURIComponent(topic)}`,
+          { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!res.ok) throw new Error(`watchlist -> ${res.status}`);
+        setTopics(normalizeTopics(((await res.json()).topics as unknown[]) ?? []));
+        setServerError(false);
+      } catch {
+        setTopics(prev);
+        setServerError(true);
+      }
+    })();
   }
 
   // Fetch the newest few bills per tracked topic. allSettled so one dead topic
@@ -178,6 +304,16 @@ export default function Watchlist({ jurisdiction = "" }: { jurisdiction?: string
           <p className="note">
             Track a topic to get a daily digest of new legislation on it.
           </p>
+        )}
+
+        {hydrated && !authed && (
+          <p className="hint">
+            <Link href="/account">Sign in</Link> to sync your watchlist across devices.
+          </p>
+        )}
+
+        {authed && serverError && (
+          <p className="note">Couldn&apos;t reach the server — changes may not be saved.</p>
         )}
 
         {topics.map((topic) => {
