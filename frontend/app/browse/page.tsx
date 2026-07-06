@@ -32,6 +32,31 @@ const STATUSES = ["ADOPTED", "ENACTED", "IN COMMITTEE", "INTRODUCED", "PLACED ON
 // Next-disable check below is reliable (the API defaults to 50 otherwise).
 const PAGE_SIZE = 20;
 
+// Hard cap on a CSV export so a single request stays bounded (a few thousand
+// rows) rather than paging the whole corpus. Sets past this are truncated and
+// the UI notes it.
+const EXPORT_LIMIT = 5000;
+
+// Columns for the CSV export, in order.
+const CSV_HEADER = ["file_no", "title", "status", "doc_type", "intro_date"];
+
+// RFC 4180: quote a field if it contains a comma, double-quote, CR or LF, and
+// escape embedded quotes by doubling them.
+function csvField(v: string | null): string {
+  const s = v == null ? "" : String(v);
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function billsToCsv(rows: BillRow[]): string {
+  const lines = [CSV_HEADER.join(",")];
+  for (const b of rows) {
+    lines.push(
+      [b.file_no, b.title, b.status, b.doc_type, b.intro_date].map(csvField).join(",")
+    );
+  }
+  return lines.join("\r\n");
+}
+
 export default function Browse() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
@@ -41,6 +66,10 @@ export default function Browse() {
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Export state is kept separate from loading/error so an export run doesn't
+  // disable the filter form or clobber the browse error, and vice versa.
+  const [exporting, setExporting] = useState(false);
+  const [exportNote, setExportNote] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -56,14 +85,21 @@ export default function Browse() {
   // Shared by the filter form and the Prev/Next buttons. Reads the current
   // filters from closure and pages via an explicit offset so the buttons can
   // step without touching the filters. Offset is only committed on success.
+  // Single source of truth for the active filters, so browse paging and CSV
+  // export send byte-for-byte identical filter params.
+  function buildFilterParams(): URLSearchParams {
+    const p = new URLSearchParams();
+    if (q.trim()) p.set("q", q.trim());
+    if (status) p.set("status", status);
+    if (jurisdiction) p.set("jurisdiction", jurisdiction);
+    return p;
+  }
+
   async function runQuery(nextOffset: number) {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      if (q.trim()) params.set("q", q.trim());
-      if (status) params.set("status", status);
-      if (jurisdiction) params.set("jurisdiction", jurisdiction);
+      const params = buildFilterParams();
       params.set("limit", String(PAGE_SIZE));
       params.set("offset", String(nextOffset));
       const res = await fetch(`${API_URL}/civic/bills?${params.toString()}`);
@@ -88,6 +124,48 @@ export default function Browse() {
     e.preventDefault();
     // A filter/search submit always resets to the first page.
     runQuery(0);
+  }
+
+  // Download the current filtered set (up to EXPORT_LIMIT rows) as CSV. Reuses
+  // the exact active filters via buildFilterParams; builds the CSV client-side
+  // and triggers a Blob download. Degrades to a subtle inline note on failure.
+  async function exportCsv() {
+    if (exporting) return;
+    setExporting(true);
+    setExportNote(null);
+    try {
+      const params = buildFilterParams();
+      params.set("limit", String(EXPORT_LIMIT));
+      params.set("offset", "0");
+      const res = await fetch(`${API_URL}/civic/bills?${params.toString()}`);
+      if (!res.ok) {
+        setExportNote(`Export failed — the API returned ${res.status}.`);
+        return;
+      }
+      const data = (await res.json()) as BillListResponse;
+      if (typeof window === "undefined") return; // download only in the browser
+      const csv = billsToCsv(data.bills);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `civicscope-bills-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a); // required for Firefox
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      if (data.total > data.bills.length) {
+        setExportNote(
+          `Exported first ${data.bills.length.toLocaleString()} of ${data.total.toLocaleString()} matches (export is capped at ${EXPORT_LIMIT.toLocaleString()}).`
+        );
+      }
+    } catch {
+      setExportNote(
+        `Couldn't reach the civicscope API at ${API_URL} — is it running on :8000?`
+      );
+    } finally {
+      setExporting(false);
+    }
   }
 
   return (
@@ -191,6 +269,17 @@ export default function Browse() {
               </Link>
             ))
           )}
+          <div className="browse-actions">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={exportCsv}
+              disabled={exporting || results.bills.length === 0}
+            >
+              {exporting ? "Exporting…" : "Export CSV"}
+            </button>
+            {exportNote && <p className="note">{exportNote}</p>}
+          </div>
           <div className="row" style={{ marginTop: 16 }}>
             <button
               type="button"
