@@ -590,6 +590,59 @@ button:disabled {
   color: var(--danger);
 }
 
+/* --- Auth: nav account slot + sign-in form ----------------------------- */
+.nav-user {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+/* Strip the global filled-button style so Log out reads like a nav link. */
+.nav-logout {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 400;
+  cursor: pointer;
+}
+.nav-logout:hover:not(:disabled) {
+  background: none;
+  color: var(--text);
+}
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.auth-form input {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 1rem;
+  font-family: inherit;
+}
+.auth-form input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+/* Inline text-button for the sign-in / create-account toggle. */
+.auth-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font-size: inherit;
+  font-weight: 400;
+  cursor: pointer;
+}
+.auth-toggle:hover:not(:disabled) {
+  background: none;
+  text-decoration: underline;
+}
+
 /* --- Topic trend sparklines -------------------------------------------- */
 .trends {
   margin-top: 20px;
