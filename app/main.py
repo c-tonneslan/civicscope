@@ -54,6 +54,7 @@ from app.civic.routers import (
     digest as civic_digest,
     jurisdictions as civic_jurisdictions,
     bills as civic_bills,
+    auth as civic_auth,
 )
 
 app.include_router(civic_ingest.router)         # POST /civic/ingest
@@ -63,6 +64,7 @@ app.include_router(civic_insights.router)       # GET  /civic/insights/{overview
 app.include_router(civic_digest.router)         # GET  /civic/insights/recent
 app.include_router(civic_jurisdictions.router)  # GET  /civic/jurisdictions
 app.include_router(civic_bills.router)          # GET  /civic/bills
+app.include_router(civic_auth.router)           # POST /civic/auth/{signup,login}, GET /me
 # --------------------------------------------------------------------------
 
 @app.get("/health")

@@ -212,6 +212,16 @@ _DDL_STATEMENTS = [
     "CREATE INDEX IF NOT EXISTS civic_votes_person_idx ON civic_votes (person_name);",
     "CREATE INDEX IF NOT EXISTS civic_votes_document_idx "
     "ON civic_votes (document_id);",
+    # 9. User accounts (for saved watchlists). Password is an argon2 hash; email is
+    #    the unique login key (its UNIQUE constraint also serves lookups).
+    """
+    CREATE TABLE IF NOT EXISTS civic_users (
+        id            BIGSERIAL PRIMARY KEY,
+        email         TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    """,
 ]
 
 
@@ -378,3 +388,40 @@ def upsert_document(conn, doc, chunks: Sequence) -> int:
             )
 
     return document_id
+
+
+# ---------------------------------------------------------------------------
+# User accounts
+# ---------------------------------------------------------------------------
+
+
+def create_user(conn, email: str, password_hash: str) -> int | None:
+    """Insert a user and return its id, or None if the email is already taken."""
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO civic_users (email, password_hash) VALUES (%s, %s) "
+            "ON CONFLICT (email) DO NOTHING RETURNING id;",
+            (email, password_hash),
+        )
+        row = cur.fetchone()
+    return row[0] if row else None
+
+
+def get_user_by_email(conn, email: str):
+    """Return ``(id, email, password_hash)`` for ``email``, or None."""
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT id, email, password_hash FROM civic_users WHERE email = %s;",
+            (email,),
+        )
+        return cur.fetchone()
+
+
+def get_user_by_id(conn, user_id: int):
+    """Return ``(id, email)`` for ``user_id``, or None."""
+
+    with conn.cursor() as cur:
+        cur.execute("SELECT id, email FROM civic_users WHERE id = %s;", (user_id,))
+        return cur.fetchone()

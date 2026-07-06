@@ -43,4 +43,8 @@ class Settings(BaseSettings):
     # X-Ingest-Token header.
     ingest_token: str | None = None
 
+    # Secret used to sign session tokens for civic user accounts. The default is a
+    # development-only value; set AUTH_SECRET in any real deployment.
+    auth_secret: str = "dev-only-change-me"
+
 settings = Settings()
