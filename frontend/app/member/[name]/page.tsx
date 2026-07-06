@@ -19,6 +19,29 @@ type Bill = {
 type Bills = { bills: Bill[]; total: number };
 type RecordItem = { vote: string; bills: number };
 type MemberRecord = { person: string; record: RecordItem[] };
+type MemberActivity = {
+  person: string;
+  jurisdiction: string | null;
+  years: number[];
+  series: number[];
+};
+
+// Copied from Trends.tsx (same shape) so this hub stays self-contained, matching
+// how the page inlines TOPIC_KEYWORDS rather than importing shared constants.
+function Sparkline({ series }: { series: number[] }) {
+  if (series.length < 2) return null;
+  const w = 150;
+  const h = 26;
+  const max = Math.max(...series, 1);
+  const pts = series
+    .map((v, i) => `${(i / (series.length - 1)) * w},${h - (v / max) * (h - 2) - 1}`)
+    .join(" ");
+  return (
+    <svg className="spark" width={w} height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+      <polyline points={pts} fill="none" stroke="var(--accent)" strokeWidth="1.5" />
+    </svg>
+  );
+}
 
 // A lightweight topic tally derived client-side from sponsored-bill titles,
 // keyed off the same TRACKED_TOPICS labels the backend uses (insights.py). This
@@ -59,6 +82,7 @@ function MemberView({ name }: { name: string }) {
 
   const [bills, setBills] = useState<Bills | null>(null);
   const [record, setRecord] = useState<MemberRecord | null>(null);
+  const [activity, setActivity] = useState<MemberActivity | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -88,6 +112,11 @@ function MemberView({ name }: { name: string }) {
         setRecord(null);
       })
       .finally(() => live && setLoading(false));
+    // Decoupled from the Promise.all above so a member-activity outage only hides
+    // the sparkline instead of tripping the shared .catch (which renders not-found).
+    getJson(`/civic/insights/member-activity?person=${p}${jz}`)
+      .then((a: MemberActivity) => live && setActivity(a))
+      .catch(() => live && setActivity(null));
     return () => {
       live = false;
     };
@@ -179,6 +208,18 @@ function MemberView({ name }: { name: string }) {
                 </li>
               ))}
             </ul>
+          </>
+        )}
+
+        {activity && activity.years.length >= 2 && (
+          <>
+            <p className="section-title">
+              Activity over time{" "}
+              <span className="hint">
+                — {activity.years[0]}–{activity.years[activity.years.length - 1]} (bills/year)
+              </span>
+            </p>
+            <Sparkline series={activity.series} />
           </>
         )}
       </div>

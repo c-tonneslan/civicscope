@@ -194,6 +194,58 @@ class TestTopicTrends:
         assert resp.json()["topics"][0]["series"] == [10, 7]
 
 
+class TestMemberActivity:
+    def test_dense_axis_and_zero_filled_series(self, monkeypatch):
+        cur = MagicMock()
+        # 2012 & 2014 sponsored (a gap year 2013) — single query, so return_value.
+        cur.fetchall.return_value = [(2012, 5), (2014, 3)]
+        _patch_conn(monkeypatch, cur)
+        out = insights.member_activity("CM Bass")
+        assert out["years"] == [2012, 2013, 2014]  # dense, gap filled
+        assert out["series"] == [5, 0, 3]          # zero-filled at 2013
+        assert out["person"] == "CM Bass"
+
+    def test_empty_case(self, monkeypatch):
+        cur = MagicMock()
+        cur.fetchall.return_value = []
+        _patch_conn(monkeypatch, cur)
+        out = insights.member_activity("Nobody")
+        assert out["years"] == []
+        assert out["series"] == []
+
+    def test_jurisdiction_bound(self, monkeypatch):
+        cur = MagicMock()
+        cur.fetchall.return_value = []
+        _patch_conn(monkeypatch, cur)
+        insights.member_activity("CM Bass", jurisdiction="phila")
+        sql, params = cur.execute.call_args.args
+        assert "d.jurisdiction = %s" in sql
+        assert "s.name = %s" in sql
+        assert "civic_sponsors" in sql
+        assert params == ("CM Bass", "phila")
+        # A no-jurisdiction call still binds the person as the first param.
+        insights.member_activity("CM Bass")
+        _, params = cur.execute.call_args.args
+        assert params[0] == "CM Bass"
+
+    def test_member_activity_route(self, civic_client, monkeypatch):
+        monkeypatch.setattr(
+            "app.civic.insights.member_activity",
+            lambda person, jurisdiction=None: {
+                "person": person,
+                "jurisdiction": jurisdiction,
+                "years": [2024, 2025],
+                "series": [3, 5],
+            },
+        )
+        resp = civic_client.get(
+            "/civic/insights/member-activity?person=CM%20Bass&jurisdiction=phila"
+        )
+        assert resp.status_code == 200
+        assert resp.json()["series"] == [3, 5]
+        assert resp.json()["person"] == "CM Bass"
+
+
 # ===========================================================================
 # HTTP routes
 # ===========================================================================

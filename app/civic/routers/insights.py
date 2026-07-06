@@ -15,6 +15,7 @@ from app.civic.schemas import (
     BillSponsorsResponse,
     BillTimelineResponse,
     BriefResponse,
+    MemberActivityResponse,
     MemberRecordResponse,
     OverviewResponse,
     RollCallResponse,
@@ -156,3 +157,15 @@ def member(
     from app.civic.insights import member_record
 
     return MemberRecordResponse(**member_record(person, topic, jurisdiction))
+
+
+@router.get("/member-activity", response_model=MemberActivityResponse)
+def member_activity(
+    person: str = Query(..., min_length=1, max_length=120),
+    jurisdiction: str | None = None,
+) -> MemberActivityResponse:
+    """A member's sponsored-bill count per year by ``?person=``."""
+
+    from app.civic.insights import member_activity as _member_activity
+
+    return MemberActivityResponse(**_member_activity(person, jurisdiction))
