@@ -12,6 +12,7 @@ export default function Nav() {
         </Link>
         <div className="nav-links">
           <Link href="/browse">Browse</Link>
+          <Link href="/analytics">Analytics</Link>
           <Link href="/about">About</Link>
         </div>
       </div>
