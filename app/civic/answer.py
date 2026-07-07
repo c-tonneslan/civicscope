@@ -252,6 +252,8 @@ def _groq_chat(system_prompt: str, user_prompt: str) -> str:
     into a refusal. Temperature 0 keeps output deterministic.
     """
 
+    import time
+
     import httpx
 
     payload = {
@@ -263,12 +265,23 @@ def _groq_chat(system_prompt: str, user_prompt: str) -> str:
         "temperature": 0.0,
         "max_tokens": 1024,
     }
-    resp = httpx.post(
-        "https://api.groq.com/openai/v1/chat/completions",
-        json=payload,
-        headers={"Authorization": f"Bearer {getattr(settings, 'groq_api_key', None)}"},
-        timeout=60.0,
-    )
+    headers = {"Authorization": f"Bearer {getattr(settings, 'groq_api_key', None)}"}
+
+    # Groq's free tier rate-limits (429) and occasionally 5xxs; retry a couple of
+    # times with a short backoff (honoring Retry-After) before giving up, so a
+    # burst of questions doesn't surface as a synthesis error.
+    resp = None
+    for attempt in range(3):
+        resp = httpx.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            json=payload,
+            headers=headers,
+            timeout=60.0,
+        )
+        if resp.status_code not in (429, 500, 502, 503) or attempt == 2:
+            break
+        wait = float(resp.headers.get("retry-after", "") or (attempt + 1) * 2)
+        time.sleep(min(wait, 10.0))
     resp.raise_for_status()
     data = resp.json()
     return (data["choices"][0]["message"]["content"] or "").strip()
