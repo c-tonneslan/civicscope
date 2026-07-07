@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from app import db
@@ -32,9 +33,16 @@ ph = PasswordHasher()
 
 # CORS: the Docket web UI runs on :3000 and calls this API on :8000, so the
 # browser needs the dev origin allowed for the POST /civic/ask fetch to succeed.
+_cors_origins = [
+    o.strip()
+    for o in os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(",")
+    if o.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=_cors_origins,
+    # Also match any *.vercel.app preview/production domain for this project.
+    allow_origin_regex=os.environ.get("CORS_ORIGIN_REGEX") or None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
