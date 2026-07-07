@@ -1,0 +1,21 @@
+name: Deploy backend to HF Space
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'requirements.txt'
+      - '.github/workflows/deploy-hf-space.yml'
+      - '.github/scripts/deploy_hf_space.py'
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install "huggingface_hub>=0.25"
+      - env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python .github/scripts/deploy_hf_space.py
