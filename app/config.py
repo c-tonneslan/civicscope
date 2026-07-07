@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = None
     anthropic_model: str = "claude-3-5-sonnet-latest"
 
+    # Optional Groq backend (llm_provider="groq"). Groq's Chat Completions API is
+    # OpenAI-compatible, free (no card), and fast — the $0 hosted option. Read by
+    # answer.py; when the key is unset the groq branch degrades to a refusal.
+    groq_api_key: str | None = None
+    groq_model: str = "llama-3.3-70b-versatile"
+
     # Legistar Web API client slug for the scoped jurisdiction. This slice is
     # hardcoded to Philadelphia ("phila"), verified against the live API.
     legistar_client: str = "phila"

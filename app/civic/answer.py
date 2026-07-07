@@ -244,6 +244,36 @@ def _anthropic_chat(system_prompt: str, user_prompt: str) -> str:
     return "".join(parts).strip()
 
 
+def _groq_chat(system_prompt: str, user_prompt: str) -> str:
+    """Low-level Groq call via its OpenAI-compatible Chat Completions API.
+
+    Free hosted option ($0, no card). ``httpx`` is imported lazily so the module
+    imports without it. Raises on transport/API errors; callers convert those
+    into a refusal. Temperature 0 keeps output deterministic.
+    """
+
+    import httpx
+
+    payload = {
+        "model": getattr(settings, "groq_model", "llama-3.3-70b-versatile"),
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        "temperature": 0.0,
+        "max_tokens": 1024,
+    }
+    resp = httpx.post(
+        "https://api.groq.com/openai/v1/chat/completions",
+        json=payload,
+        headers={"Authorization": f"Bearer {getattr(settings, 'groq_api_key', None)}"},
+        timeout=60.0,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    return (data["choices"][0]["message"]["content"] or "").strip()
+
+
 def synthesize_chat(system_prompt: str, user_prompt: str) -> str:
     """Dispatch an arbitrary system+user prompt to the configured LLM backend.
 
@@ -255,6 +285,8 @@ def synthesize_chat(system_prompt: str, user_prompt: str) -> str:
     provider = settings.llm_provider.lower()
     if provider == "anthropic":
         return _anthropic_chat(system_prompt, user_prompt)
+    if provider == "groq":
+        return _groq_chat(system_prompt, user_prompt)
     if provider == "ollama":
         return _ollama_chat(system_prompt, user_prompt)
     raise ValueError(f"unknown LLM provider: {settings.llm_provider!r}")
